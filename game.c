@@ -237,8 +237,8 @@ int ShowGame()
 		if (_kbhit() != 0)
 		{
 			key = _getch();
-			if (key == BUILD )     //0 -> BASIC MODE 1 -> BUILD
-			{
+			if (key == BUILD &&gameBoardInfo[p.y ][p.x/2-1] != 000)     //0 -> BASIC MODE 1 -> BUILD
+			{ 
 				if (MODE == 1)
 				{
 					MODE = 0;
@@ -598,7 +598,7 @@ int LoadStage(Node* mObjListHead)
 	FILE* fp;
 	int width, height;
 
-	sprintf(fileName, "stage2.txt", StageNumber);
+	sprintf(fileName, "stage%d.txt", StageNumber);
 
 	fp = fopen(fileName, "r");
 	if (fp == NULL)
@@ -917,18 +917,7 @@ void BlockBuild(int key)
 				bY++;
 			
 			break;
-		case KB_N:
-			if (page >= 5)
-				break;
-			page++;
-			UserBlockManage();
-			break;
-		case KB_M:
-			if (page <= 1)
-				break;
-			page--;
-			UserBlockManage();
-			break;
+	
 		case SPACE:
 			if (!(DetectCollisionForBlock(bX, bY, blockModel[prevblockid])))
 			{
