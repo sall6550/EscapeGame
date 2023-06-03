@@ -46,6 +46,7 @@ void ClearConsole();
 //MAP
 int gameBoardInfo[MAX_HEIGHT][MAX_WIDTH] = { 0 };
 int SideQuest = 0;
+int StageNumber = 2;
 void InitStageInfo();
 int LoadStage(Node* mObjListHead);
 void DrawGameBoard();
@@ -61,7 +62,6 @@ int MovePlayer();
 
 //BLOCKMANAGE
 int UserBlockID[MAXUSERBLOCK] = { 0 };
-int StageNumber = 1;
 int CurrentUserBlock;
 int page = 1;
 int bX, bY;
@@ -421,6 +421,7 @@ void DrawGameUI()
 		if (i <= SideQuest)
 			printf("★");
 	}
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), WHITE);
 
 	if (p.isExtraLife)
 	{
@@ -734,7 +735,7 @@ int LoadStage(Node* mObjListHead)
 				obj.objId = gameBoardInfo[y][x];
 				obj.x = x;
 				obj.y = y;
-				obj.delay = gameBoardInfo[y][x]%10*100;
+				obj.delay = gameBoardInfo[y][x] % 10 * 200;
 				addObj(obj, mObjListHead);
 			}
 		}
@@ -966,7 +967,7 @@ void UserBlockManage()
 		}
 		else {
 			DeleteAllBlock();
-			ShowBlock(blockModel[UserBlockID[i]],7);
+			ShowBlock(blockModel[UserBlockID[i]], WHITE);
 		}
 		SetCurrentCursorPos(x + 2, y + 4);
 		printf("-0%d-", i % 4 + 1);
@@ -1073,11 +1074,11 @@ void BlockBuild(int key)
 	SetCurrentCursorPos(bX, bY);
 	if ((DetectCollisionForBlock(bX, bY, blockModel[UserBlockID[blockid]])))
 	{
-		ShowBlock(blockModel[UserBlockID[blockid]], 12);
+		ShowBlock(blockModel[UserBlockID[blockid]], LIGHTRED);
 		collosion_redraw = 1;
 	}
 	else
-		ShowBlock(blockModel[UserBlockID[blockid]],7);
+		ShowBlock(blockModel[UserBlockID[blockid]], WHITE);
 	prevbX = bX, prevbY = bY;
 	prevblockid = UserBlockID[blockid];
 	
@@ -1096,7 +1097,7 @@ void ShowBlock(char blockInfo[4][4],int color)
 			}
 		}
 	}
-	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 7);
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), WHITE);
 	SetCurrentCursorPos(curPos.X, curPos.Y);
 }
 
@@ -1220,7 +1221,8 @@ int detectCollisionMovingBlocks(int x, int y) { // 해당 좌표에 이동블럭의 중심을
 
 }
 
-int parseInfo(int info, int choice) { // choice : 0 for id, 1 for direction, 2 for rotation
+// choice : 0 for id, 1 for direction, 2 for rotation
+int parseInfo(int info, int choice) { 
 	switch (choice) {
 	case 0:
 		return (info / 100);
@@ -1278,7 +1280,7 @@ void moveAll(Node* headNode) {
 			}
 			it->lastUpdateTick = GetTickCount();
 		}
-		if ((it->obj.objId != 0) && ((it->obj.x <= 1 || it->obj.x > gBoardWidth) || (it->obj.y <= 1 || it->obj.y > gBoardHeight)))
+		if ((it->obj.objId != 0 && parseInfo(it->obj.objId, 0) != 4) && ((it->obj.x < 1 || it->obj.x > gBoardWidth) || (it->obj.y < 1 || it->obj.y > gBoardHeight)))
 		{
 			colCheck = 1;
 		}
