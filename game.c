@@ -41,7 +41,7 @@ void SetCurrentCursorPos(int x, int y);
 //DRAW
 void RemoveCursor();
 int ShowMainMenu();
-void ShowGame();
+int ShowGame();
 void ShowResult();
 void DrawGameUI();
 void UpdateGameUI();
@@ -59,19 +59,22 @@ int main()
 
 	while (1)
 	{
-		control = ShowMainMenu();
+		if (ShowMainMenu() == 0)
+			break;
+		//control = ShowMainMenu();
 
-		if (control == 0)	break;
+		//if (control == 0)	break;
 		
 
 		while (1)
 		{
-			ShowGame();
-
-			control = GamePause();
-
-			if (control == 0)
+			if (ShowGame() == 0)
 				break;
+
+			//control = GamePause();
+
+			//if (control == 0)
+			//	break;
 		}
 	}
 
@@ -157,7 +160,7 @@ int ShowMainMenu()
 		}
 	}
 }
-void ShowGame()
+int ShowGame()
 {
 	int time = 0;
 	DWORD startMsTime = GetTickCount();
@@ -181,7 +184,27 @@ void ShowGame()
 			SetCurrentCursorPos(71, 4);
 			printf("%02d:%02d", minute, second);
 		}
-		DrawGameBoard();
+
+		if (_kbhit() != 0)
+		{
+			int key = _getch();
+
+			switch (key)
+			{
+			case ESCAPE:
+				if (GamePause() == 0)
+				{
+					ClearConsole();
+					return 0;
+				}
+				else
+					DrawGameBoard();
+				break;
+			}
+
+		}
+
+		//DrawGameBoard();
 		Player();
 	}
 }
@@ -239,7 +262,64 @@ void UpdateGameUI()
 }
 int GamePause()
 {
+	//0 = 메인 메뉴로 / 1 = 게임 재개
 
+	int select = 1;
+
+	for (int y = gBoardHeight / 2 - 4; y <= gBoardHeight / 2 + 4; y++)
+	{
+		for (int x = gBoardWidth / 2 - 15; x <= gBoardWidth / 2 + 15; x++)
+		{
+			SetCurrentCursorPos(x, y);
+			printf(" ");
+		}
+	}
+
+	SetCurrentCursorPos(gBoardWidth / 2 - 10, gBoardHeight / 2 - 3);
+	printf("G A M E   P A U S E D");
+
+	SetCurrentCursorPos(gBoardWidth / 2 - 6, gBoardHeight / 2);
+	printf("▶  RESUME");
+
+	SetCurrentCursorPos(gBoardWidth / 2 - 9, gBoardHeight / 2 + 2);
+	printf("RETURN TO MAIN MENU");
+
+
+
+	while (1)
+	{
+		if (_kbhit() != 0)
+		{
+			int key = _getch();
+
+			switch (key)
+			{
+			case DARROW:
+				if (select == 1)
+				{
+					select = 0;
+					SetCurrentCursorPos(gBoardWidth / 2 - 6, gBoardHeight / 2);
+					printf("  ");
+					SetCurrentCursorPos(gBoardWidth / 2 - 13, gBoardHeight / 2 + 2);
+					printf("▶");
+				}
+				break;
+			case UARROW:
+				if (select == 0)
+				{
+					select = 1;
+					SetCurrentCursorPos(gBoardWidth / 2 - 13, gBoardHeight / 2 + 2);
+					printf("  ");
+					SetCurrentCursorPos(gBoardWidth / 2 - 6, gBoardHeight / 2);
+					printf("▶");
+				}
+				break;
+			case ENTER:
+				return select;
+				break;
+			}
+		}
+	}
 }
 void ClearConsole()
 {
