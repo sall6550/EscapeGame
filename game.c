@@ -219,10 +219,12 @@ int ShowGame()
 		//플레이어 이동함수 여기넣었습니다
 		if(MODE==0)
 			MovePlayer();
-
+		
 		PrintPlayer();
+		//PrintPlay()함수안으로이동
+		//Sleep(40);
 		//조정시 플레이어속도조정
-		Sleep(40);
+		
 
 		DWORD curMsTime = GetTickCount();
 
@@ -236,8 +238,8 @@ int ShowGame()
 		if (_kbhit() != 0)
 		{
 			key = _getch();
-			if (key == BUILD )     //0 -> BASIC MODE 1 -> BUILD
-			{
+			if (key == BUILD &&gameBoardInfo[p.y ][p.x/2-1] != 000)     //0 -> BASIC MODE 1 -> BUILD
+			{ 
 				if (MODE == 1)
 				{
 					MODE = 0;
@@ -246,8 +248,14 @@ int ShowGame()
 				}
 				else
 					MODE = 1;
-				bX = p.x;
-				bY = p.y - 4;
+				if (p.x > gBoardWidth )
+					bX = p.x - 4;
+				else
+					bX = p.x + 4;
+				if (p.y > gBoardHeight / 2)
+					bY = p.y - 2;
+				else
+					bY = p.y + 2;
 
 			}
 			if(MODE==0)
@@ -484,7 +492,7 @@ int DetectCollisionForPlayer(int x, int y)
 
 	int colID = gameBoardInfo[y - 1][x - 1] / 100;
 
-	if ((x < 1 || x >= gBoardWidth) || (y < 1 || y >= gBoardHeight))
+	if ((x < 1 || x >= gBoardWidth+2) || (y < 1 || y >= gBoardHeight))
 		return 1;
 
 	if (colID == 3 /*// colID == 총알*/)
@@ -578,7 +586,7 @@ int MovePlayer()
 			//p.y -= floor(p.t_jump);
 		}
 		//점프를 그만하게하기위한 t_jump값 조정
-		p.t_jump += 0.4;
+		p.t_jump += 0.6;
 
 	}
 }
@@ -729,7 +737,97 @@ void DrawGameBoard()
 		}
 	}
 }
+void DrawGameBoardPart()
+{
+	int cursX, cursY;
+	int x, y;
+	COORD curPos = GetCurrentCursorPos();
+	for (y = 0; y < 4; y++) {
+		for (x = 0; x < 4; x++) {
+			SetCurrentCursorPos(curPos.X + (x * 2), curPos.Y + y);
 
+			int temp, hundred, ten, one;
+
+			temp = gameBoardInfo[curPos.Y + y-1][curPos.X/2+x-1];
+			one = temp % 10;
+			temp /= 10;
+			ten = temp % 10;
+			temp /= 10;
+			hundred = temp % 10;
+
+			switch (hundred)
+			{
+			case 0:
+				printf("  ");
+				break;
+			case 1:
+				printf("■");
+				break;
+			case 2:
+				printf("□");
+				break;
+			case 3:
+				switch (ten)
+				{
+				case UP:
+					printf("▲");
+					break;
+				case DOWN:
+					printf("▼");
+					break;
+				case RIGHT:
+					printf("▶");
+					break;
+				case LEFT:
+					printf("◀");
+					break;
+				}
+				break;
+			case 4:
+				printf("▣");
+				//방향 결정 필요
+				break;
+			case 5:
+				printf("▤");
+				//방향, 거리 결정 필요
+				break;
+			case 6:
+				printf("┌");
+				//방향 결정 필요
+				break;
+			case 7:
+				printf("♣");
+				//아이템 종류 결정 필요
+				break;
+			case 8:
+				switch (ten)
+				{
+				case 1:
+					SetCurrentCursorPos(x * 2, y);
+					printf("★");
+					break;
+				case 2:
+					p.x = x * 2;
+					p.y = y;
+					SetCurrentCursorPos(x * 2, y);
+					printf("●");
+					break;
+				}
+				//사이드퀘스트 가산 필요
+				break;
+			case 9:
+				printf("  ");
+				//클리어포인트
+				break;
+			case 10:
+				printf("  ");
+				//이동블럭 전환점
+				break;
+			}
+
+		}
+	}
+}
 
 //BLOCK MANAGE
 void UserBlockManage()
@@ -820,18 +918,7 @@ void BlockBuild(int key)
 				bY++;
 			
 			break;
-		case KB_N:
-			if (page >= 5)
-				break;
-			page++;
-			UserBlockManage();
-			break;
-		case KB_M:
-			if (page <= 1)
-				break;
-			page--;
-			UserBlockManage();
-			break;
+	
 		case SPACE:
 			if (!(DetectCollisionForBlock(bX, bY, blockModel[prevblockid])))
 			{
@@ -861,7 +948,7 @@ void BlockBuild(int key)
 		DeleteBlock(blockModel[prevblockid]);
 		if (collosion_redraw == 1)
 		{
-			DrawGameBoard();
+			DrawGameBoardPart();
 			collosion_redraw = 0;
 		}
 	}
@@ -1205,4 +1292,5 @@ void PrintPlayer()
 		gameBoardInfo[p.y - 1][p.x / 2 - 1] = 900;
 	}*/
 	gameBoardInfo[p.y - 1][p.x / 2 - 1] = 900;
+	Sleep(80);
 }
