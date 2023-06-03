@@ -79,6 +79,8 @@ int prevbX=0, prevbY = 0;
 int collosion_redraw = 0;/*
 void ShowRedBlock(char blockInfo[4][4]);
 */
+Node* Pipeblock_Changeobj(Node* it,int col,int direction);// 파이프블럭
+Node* changeObjLot(Node* it,int x,int y, int direction) ;
 void BlockListUpdate(int UseBlock);
 void BlockBuild(int key);
 void UserBlockManage();
@@ -1587,8 +1589,8 @@ void BlockAllocator() // 초기블럭할당자.
 				UserBlockID[i] = i * 4;
 				CurrentUserBlock++;
 			}
-			else
-				UserBlockID[i] = -1;
+			else if(i>=8)
+				UserBlockID[i] = 28;
 		}
 }
 void BlockListUpdate(int UseBlock)
@@ -1608,8 +1610,16 @@ void BlockBuild(int key)
 	// 충돌시 설치 불가능
 	int color=WHITE;
 	int categori = 1;
-	if (UserBlockID[blockid] >= 28)
+	if (UserBlockID[blockid] == 28)
 		categori = 2;
+	else if (UserBlockID[blockid] == 29)
+		categori = 3;
+	else if (UserBlockID[blockid] == 30)
+		categori = 4;
+	else if (UserBlockID[blockid] == 31)
+		categori = 5;
+	else
+		categori = 1;
 	SetCurrentCursorPos(prevbX, prevbY);
 	switch (key)
 		{
@@ -1734,7 +1744,7 @@ void DeleteBlock(char blockInfo[4][4])
 }
 void MakeBlock(char blockInfo[4][4],int blockCategori)
 {
-	//1 기본블럭 2 파이프블럭
+	//1 기본블럭 2~5 파이프블럭 6~ ?
 	int x, y;
 	COORD curPos = GetCurrentCursorPos();
 	curPos.X = curPos.X - 2;
@@ -1745,7 +1755,13 @@ void MakeBlock(char blockInfo[4][4],int blockCategori)
 				{
 
 					if (blockCategori == 2)
-						gameBoardInfo[y + curPos.Y][x + curPos.X / 2] = 600;
+						gameBoardInfo[y + curPos.Y][x + curPos.X / 2] = 610;
+					else if (blockCategori == 3)
+						gameBoardInfo[y + curPos.Y][x + curPos.X / 2] = 620;
+					else if (blockCategori == 4)
+						gameBoardInfo[y + curPos.Y][x + curPos.X / 2] = 630;
+					else if (blockCategori == 5)
+						gameBoardInfo[y + curPos.Y][x + curPos.X / 2] = 640;
 					else
 						gameBoardInfo[y + curPos.Y][x + curPos.X / 2] = 100;
 
@@ -1776,6 +1792,7 @@ int DetectCollisionForBlock(int x, int y, char blockInfo[4][4])
 		for (x1 = 0; x1 < 4; x1++) {
 			if (blockInfo[y1][x1] == 1 && gameBoardInfo[y1 + y][x1 + x / 2] != 000)
 				return 1;
+			
 		}
 	}
 	return 0;
@@ -1889,6 +1906,13 @@ void moveAll(Node* headNode) {
 
 					if (col == 900 && p.invincibility == 0)
 						DiePlayer();
+					else  if(col == 610 || col == 620 || col == 630 || col ==640)// 파이프블럭과 닿는부분
+					{
+						it = Pipeblock_Changeobj(it,col,direction);
+						if ((it->obj.x + 1) * 2 == p.x, it->obj.y + 1 ==p.y)
+							DiePlayer();
+						colCheck = 0;
+					}
 				}
 				else
 				{
@@ -1977,7 +2001,101 @@ void removeObj(Node* it) {
 	printf("  ");
 	free(it);
 }
+Node* Pipeblock_Changeobj(Node* it, int col, int direction)
+{
+	int x = 0, y = 0;
+	switch (col)
+	{
+	case 610:
+		if (direction == 3)
+		{
+			x = 2, y = 2;
+			it->obj.objId = 320;
+			direction = 2;
+		}
+		else
+		{
+			x = -2, y = -2;
+			it->obj.objId = 310;
+			direction = 1;
+		}break;
+	case 620:
+		if (direction == 2)
+		{
+			x = 2, y = -2;
+			it->obj.objId = 310;
+			direction = 1;
+		}
+		else {
+			x = -2, y = 2;
+			it->obj.objId = 340;
+			direction = 4;
+		}
+		break;
+	case 630:
+		if (direction == 1) {
+			x = -2, y = -2;
+			it->obj.objId = 340;
+			direction = 4;
+		}
+		else {
+			x = 2, y = 2;
+			it->obj.objId = 330;
+			direction = 3;
+		}
+		break;
+	case 640:
+		if (direction == 4)
+		{
+			x = -2, y = 2;
+			it->obj.objId = 330;
+			direction = 3;
+		}
+		else
+		{
 
+			x = 2, y = -2;
+			it->obj.objId = 320;
+			direction = 2;
+			break;
+		}
+	}
+		it = changeObjLot(it, x, y, direction);
+		return it;
+	}
+
+Node* changeObjLot(Node* it, int x, int y,int direction) 
+{
+	
+
+	
+	SetCurrentCursorPos((it->obj.x + 1) * 2, it->obj.y + 1);
+	printf("  ");
+	// 현재 위치 공백
+	gameBoardInfo[it->obj.y +y][it->obj.x+x] = gameBoardInfo[it->obj.y][it->obj.x];
+	gameBoardInfo[it->obj.y][it->obj.x] = 0;
+	it->obj.x += x;
+	it->obj.y += y;
+	SetCurrentCursorPos((it->obj.x + 1) * 2, it->obj.y + 1);
+	
+	switch (direction)
+	{
+	case 1:
+		SetCurrentCursorPos((it->obj.x + 1) * 2, it->obj.y + 1);
+		printf("△");
+		break;
+	case 2:
+		printf("▷");
+		break;
+	case 3:
+		printf("▽");
+		break;
+	case 4:
+		printf("◁");
+		break;
+	}
+	return it;
+}
 Node* thornMoveDirection(Node* it, int direction) 
 {
 	
@@ -1987,11 +2105,12 @@ Node* thornMoveDirection(Node* it, int direction)
 		SetCurrentCursorPos((it->obj.x + 1) * 2, it->obj.y);
 		printf("△");
 		SetCurrentCursorPos((it->obj.x + 1) * 2, it->obj.y + 1);
-printf("  ");
-gameBoardInfo[it->obj.y - 1][it->obj.x] = gameBoardInfo[it->obj.y][it->obj.x];
-gameBoardInfo[it->obj.y][it->obj.x] = 0;
-it->obj.y -= 1;
-break;
+		
+		printf("  ");
+		gameBoardInfo[it->obj.y - 1][it->obj.x] = gameBoardInfo[it->obj.y][it->obj.x];
+		gameBoardInfo[it->obj.y][it->obj.x] = 0;
+		it->obj.y -= 1;
+		break;
 	case 2:
 		SetCurrentCursorPos((it->obj.x + 2) * 2, it->obj.y + 1);
 		printf("▷");
