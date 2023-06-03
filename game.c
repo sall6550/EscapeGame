@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <windows.h>
+#include <time.h>
 #include "block.h"
 #include "defines.h"
 #include "player.h"
@@ -10,8 +11,8 @@
 
 int gBoardHeight;
 int gBoardWidth;
-int speed = 500 / 15;
-
+clock_t start1, finish1,start2,finish2;
+double duration1,duration2;
 
 //현재 0:공백 1:가시 2:바닥 3:플레이어
 //방향은 ↑:1 / →:2 / ↓:3 / ←:4
@@ -59,6 +60,7 @@ void ClearGameBoard();
 
 //PLAYER
 Player p;
+COORD StartPosition;
 void InitPlayer();
 void ControlCharacter(int key);
 int DetectCollisionForPlayer(int x, int y);
@@ -74,12 +76,14 @@ int bX, bY;
 int blockid = 0;
 int MODE = 0, prevblockid = -1;
 int prevbX=0, prevbY = 0;
-int collosion_redraw = 0;
+int collosion_redraw = 0;/*
 void ShowRedBlock(char blockInfo[4][4]);
+*/
+void BlockListUpdate(int UseBlock);
 void BlockBuild(int key);
 void UserBlockManage();
 void BlockAllocator();
-void ShowBlock(char blockinfo[4][4]);
+void ShowBlock(char blockinfo[4][4],int color);
 void DeleteBlock(char blockinfo[4][4]);
 void DeleteAllBlock();
 void MakeBlock(char blockInfo[4][4]);
@@ -91,10 +95,12 @@ int detectCollision(int x, int y);
 int parseInfo(int info, int choice);
 int detectCollisionMovingBlocks(int x, int y);
 void moveAll(Node* headNode);
-Node* moveDirection(Node* it, int direction);
+Node* thornMoveDirection(Node* it, int direction);
+Node* mBlockMoveDirection(Node* it, int direction, int rotation);
 void addObj(mObj obj, Node* listHeader);
 void removeObj(Node* it);
 void freeAll(Node* headNode);
+int detectCollisionForMBlock(int x, int y, int rotation);
 
 
 
@@ -285,7 +291,10 @@ int ShowGame()
 					DeleteBlock(blockModel[prevblockid]);
 				}
 				else
+				{
+					prevblockid = -1;
 					MODE = 1;
+				}
 				if (p.x > gBoardWidth )
 					bX = p.x - 4;
 				else
@@ -434,7 +443,6 @@ void DrawGameUI()
 	printf("TIME");
 	SetCurrentCursorPos((gBoardWidth * 2) + (statusBoardWidth / 2), 3);
 	printf("%02d:%02d", 0, 0);
-
 	SetCurrentCursorPos((gBoardWidth * 2) + (statusBoardWidth / 2), 5);
 	for (int i = 1; i <= 3; i++)
 	{
@@ -467,6 +475,39 @@ void UpdateGameUI()
 	int statusBoardWidth = 28;
 	int statusBoardHeight = gBoardHeight;
 
+	//아이템 남은시간 표시
+	if (p.defyingGravity == 1 && p.invincibility == 0) {
+		SetCurrentCursorPos((gBoardWidth * 2) + (statusBoardWidth / 2)-6, 4);
+		printf("                   ");
+		SetCurrentCursorPos((gBoardWidth * 2) + (statusBoardWidth / 2) - 6, 4);
+		printf("중력무시 남은시간:%d", DEFYING_GRAVITY_TIME-(int)duration1);
+		SetCurrentCursorPos((gBoardWidth * 2) + (statusBoardWidth / 2) - 6, 5);
+		printf("                   ");
+	}
+	else if (p.defyingGravity == 0 && p.invincibility == 1) {
+		SetCurrentCursorPos((gBoardWidth * 2) + (statusBoardWidth / 2) - 6, 4);
+		printf("                   ");
+		SetCurrentCursorPos((gBoardWidth * 2) + (statusBoardWidth / 2) - 6, 4);
+		printf("  무적 남은시간:%d", INVINCIBILITY_TIME - (int)duration2);
+		SetCurrentCursorPos((gBoardWidth * 2) + (statusBoardWidth / 2) - 6, 5);
+		printf("                   ");
+	}
+	else if (p.defyingGravity == 1 && p.invincibility == 1) {
+		SetCurrentCursorPos((gBoardWidth * 2) + (statusBoardWidth / 2) - 6, 4);
+		printf("                   ");
+		SetCurrentCursorPos((gBoardWidth * 2) + (statusBoardWidth / 2) - 6, 4);
+		printf("중력무시 남은시간:%d", DEFYING_GRAVITY_TIME - (int)duration1);
+		SetCurrentCursorPos((gBoardWidth * 2) + (statusBoardWidth / 2) - 6, 5);
+		printf("                   ");
+		SetCurrentCursorPos((gBoardWidth * 2) + (statusBoardWidth / 2) - 6, 5);
+		printf("  무적 남은시간:%d", INVINCIBILITY_TIME - (int)duration2);
+	}
+	else if (p.defyingGravity == 0 && p.invincibility==0) {
+		SetCurrentCursorPos((gBoardWidth * 2) + (statusBoardWidth / 2)-6, 4);
+		printf("                   ");
+		SetCurrentCursorPos((gBoardWidth * 2) + (statusBoardWidth / 2) - 6, 5);
+		printf("                   ");
+	}
 	//사이드퀘스트 표시
 	SetCurrentCursorPos((gBoardWidth * 2) + (statusBoardWidth / 2), 5);
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), YELLOW);
@@ -480,12 +521,16 @@ void UpdateGameUI()
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), WHITE);
 
 	//1회부활 아이템 표시
+	SetCurrentCursorPos((gBoardWidth * 2) + (statusBoardWidth / 2) + 2, 6);
 	if (p.isExtraLife)
 	{
-		SetCurrentCursorPos((gBoardWidth * 2) + (statusBoardWidth / 2) + 2, 7);
 		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), RED);
-		printf("♥ ");
+		printf("♥");
 		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), WHITE);
+	}
+	else
+	{
+		printf("  ");
 	}
 }
 int GamePause()
@@ -734,6 +779,8 @@ void InitPlayer()
 	p.t_jump = 2;
 	p.isDead = 0;
 	p.isExtraLife = 0;
+	p.defyingGravity = 0;
+	p.invincibility = 0;
 }
 void ControlCharacter(int key)
 {
@@ -772,7 +819,21 @@ int DetectCollisionForPlayer(int x, int y)
 		//ITEM
 		if (colID == 7)
 		{
-
+			switch (type)
+			{
+			case 1: //중력무시
+				p.defyingGravity = 1;
+				start1 = clock();
+				break;
+			case 2: //무적
+				p.invincibility = 1;
+				start2 = clock();
+				break;
+			case 3:
+				p.isExtraLife = 1;
+				UpdateGameUI();
+				break;
+			}
 		}
 		//POINT
 		else if (colID == 8)
@@ -797,109 +858,356 @@ int DetectCollisionForPlayer(int x, int y)
 int MovePlayer()
 {
 	int rtn;
-
-	//왼쪽키 누를때
-	//조건:캐릭터위치가 맵 안쪽에있고 && 
-	//게임보드인포상 캐릭터 왼쪽 값이 0 일때
-	if (GetAsyncKeyState(VK_LEFT) & 0x8000 &&
-		p.x > 2)
-	{
-		rtn = DetectCollisionForPlayer(p.x / 2 - 1, p.y);
-
-		if (rtn == 0)
+	if (p.defyingGravity == 0 && p.invincibility == 0) {
+		UpdateGameUI();
+		if (GetAsyncKeyState(VK_LEFT) & 0x8000 &&
+			p.x > 2)
 		{
-			SetCurrentCursorPos(p.x, p.y);
-			//캐릭터가 지나간자리를 공백으로만들기위해
-			printf("  ");
-			//캐릭터가 지나간자리 게임보드인포를 0으로 만들음
-			gameBoardInfo[p.y - 1][p.x / 2 - 1] = 0;
-			//캐릭터 왼쪽으로 1칸 이동
-			p.x -= 2;
-		}
-		else if (rtn == -1)
-			DiePlayer();
-
-	}
-	//오른쪽키 누를때
-	//조건:캐릭터위치가 맵 안쪽에있고 &&
-	//게임보드인포상 오른쪽 값이 0일때
-	if (GetAsyncKeyState(VK_RIGHT) & 0x8000 &&
-		p.x < gBoardWidth * 2) 
-	{
-		rtn = DetectCollisionForPlayer(p.x / 2 + 1, p.y);
-
-		if (rtn == 0)
-		{
-			SetCurrentCursorPos(p.x, p.y);
-			//캐릭터가 지나간자리를 공백으로만들기위해
-			printf("  ");
-			//캐릭터가 지나간자리 게임보드인포를 0으로 만들음
-			gameBoardInfo[p.y - 1][p.x / 2 - 1] = 0;
-			//캐릭터 오른쪽으로 1칸 이동
-			p.x += 2;
-		}
-		else if (rtn == -1)
-			DiePlayer();
-	}
-
-	//바닥 Y값(바닥까지 캐릭터가 떨어지게 하기위해 값 지정)
-	int floor_Y = gBoardHeight + 1;
-	//위에 키 누를때
-	//조건:캐릭터 t_jump값이 2보다 클때 &&
-	//캐릭터 아래 게임보드 인포값이 2 일때
-	if (GetAsyncKeyState(VK_UP) & 0x8000
-		&& p.t_jump >= 2) 
-	{
-		rtn = DetectCollisionForPlayer(p.x / 2, p.y + 1);
-
-		//캐릭터의 t_jump값을 0으로만들음
-		if (rtn == 1)
-			p.t_jump = 0;
-		else if (rtn == -1)
-			DiePlayer();
-	}
-
-	SetCurrentCursorPos(p.x, p.y);
-	//캐릭터가 지나간자리를 공백으로만들기위해(점프했을때)
-	printf("  ");
-	//캐릭터가 지나간자리 게임보드인포를 0으로 만들음(점프했을때)
-	gameBoardInfo[p.y - 1][p.x / 2 - 1] = 0;
-
-	//점프
-	//캐릭터가 맵 바닥보다 높이 있고 
-	//&& 캐릭터 t_jump 가 2보다 크고
-	//&& 캐릭터 아래 게임보드인포값이 0일때
-
-	//아래
-	if (p.y < floor_Y
-		&& p.t_jump >= 2)
-	{
-		rtn = DetectCollisionForPlayer(p.x / 2, p.y + 1);
-
-		//캐릭터 아래로 내리기
-		if (rtn == 0)
-			p.y += 1;
-		else if (rtn == -1)
-			DiePlayer();
-	}
-
-	//캐릭터 t_jump 가 2보다작을때(up을 눌러서 t_jump가 0이됐을때)
-	if (p.t_jump < 2) {
-		//조건:캐릭터위에 벽이있지않으면(위쪽 충돌처리)
-		//&&캐릭터가 맵 위쪽 넘어가지않게
-		if (p.y > 1) 
-		{
-			rtn = DetectCollisionForPlayer(p.x / 2, p.y - 1);
+			rtn = DetectCollisionForPlayer(p.x / 2 - 1, p.y);
 
 			if (rtn == 0)
-				p.y -= 1;
-			//캐릭터 위로 올리기
-			//floor(반올림)을 쓰면 캐릭터가 덜 점프하게 할 수있는데 반응속도가 느려짐
-			//p.y -= floor(p.t_jump);
-		}
-		//점프를 그만하게하기위한 t_jump값 조정
-		p.t_jump += 0.6;
+			{
+				SetCurrentCursorPos(p.x, p.y);
+				//캐릭터가 지나간자리를 공백으로만들기위해
+				printf("  ");
+				//캐릭터가 지나간자리 게임보드인포를 0으로 만들음
+				gameBoardInfo[p.y - 1][p.x / 2 - 1] = 0;
+				//캐릭터 왼쪽으로 1칸 이동
+				p.x -= 2;
+			}
+			else if (rtn == -1)
+				DiePlayer();
 
+		}
+		//오른쪽키 누를때
+		//조건:캐릭터위치가 맵 안쪽에있고 &&
+		//게임보드인포상 오른쪽 값이 0일때
+		if (GetAsyncKeyState(VK_RIGHT) & 0x8000 &&
+			p.x < gBoardWidth * 2)
+		{
+			rtn = DetectCollisionForPlayer(p.x / 2 + 1, p.y);
+
+			if (rtn == 0)
+			{
+				SetCurrentCursorPos(p.x, p.y);
+				//캐릭터가 지나간자리를 공백으로만들기위해
+				printf("  ");
+				//캐릭터가 지나간자리 게임보드인포를 0으로 만들음
+				gameBoardInfo[p.y - 1][p.x / 2 - 1] = 0;
+				//캐릭터 오른쪽으로 1칸 이동
+				p.x += 2;
+			}
+			else if (rtn == -1)
+				DiePlayer();
+		}
+
+		//바닥 Y값(바닥까지 캐릭터가 떨어지게 하기위해 값 지정)
+		int floor_Y = gBoardHeight + 1;
+		if (GetAsyncKeyState(VK_UP) & 0x8000
+			&& p.t_jump >= 2)
+		{
+			rtn = DetectCollisionForPlayer(p.x / 2, p.y + 1);
+
+			//캐릭터의 t_jump값을 0으로만들음
+			if (rtn == 1)
+				p.t_jump = 0;
+			else if (rtn == -1)
+				DiePlayer();
+		}
+
+		SetCurrentCursorPos(p.x, p.y);
+		//캐릭터가 지나간자리를 공백으로만들기위해(점프했을때)
+		printf("  ");
+		//캐릭터가 지나간자리 게임보드인포를 0으로 만들음(점프했을때)
+		gameBoardInfo[p.y - 1][p.x / 2 - 1] = 0;
+
+		//점프
+		//캐릭터가 맵 바닥보다 높이 있고 
+		//&& 캐릭터 t_jump 가 2보다 크고
+		//&& 캐릭터 아래 게임보드인포값이 0일때
+
+		//아래
+		if (p.y < floor_Y
+			&& p.t_jump >= 2)
+		{
+			rtn = DetectCollisionForPlayer(p.x / 2, p.y + 1);
+
+			//캐릭터 아래로 내리기
+			if (rtn == 0)
+				p.y += 1;
+			else if (rtn == -1)
+				DiePlayer();
+		}
+
+		//캐릭터 t_jump 가 2보다작을때(up을 눌러서 t_jump가 0이됐을때)
+		if (p.t_jump < 2) {
+			//조건:캐릭터위에 벽이있지않으면(위쪽 충돌처리)
+			//&&캐릭터가 맵 위쪽 넘어가지않게
+			if (p.y > 1)
+			{
+				rtn = DetectCollisionForPlayer(p.x / 2, p.y - 1);
+
+				if (rtn == 0)
+					p.y -= 1;
+				//캐릭터 위로 올리기
+				//floor(반올림)을 쓰면 캐릭터가 덜 점프하게 할 수있는데 반응속도가 느려짐
+				//p.y -= floor(p.t_jump);
+			}
+			//점프를 그만하게하기위한 t_jump값 조정
+			p.t_jump += 0.6;
+
+		}
+	}
+	//중력무시아이템 먹었을때
+	else if (p.defyingGravity == 1 && p.invincibility == 0) {
+		finish1 = clock();
+		duration1 = (double)(finish1 - start1) / CLOCKS_PER_SEC;
+		UpdateGameUI();
+		if (duration1 > DEFYING_GRAVITY_TIME) {
+			p.defyingGravity = 0;
+		}
+		if (GetAsyncKeyState(VK_LEFT) & 0x8000 &&
+			p.x > 2)
+		{
+			rtn = DetectCollisionForPlayer(p.x / 2 - 1, p.y);
+
+			if (rtn == 0)
+			{
+				SetCurrentCursorPos(p.x, p.y);
+				//캐릭터가 지나간자리를 공백으로만들기위해
+				printf("  ");
+				//캐릭터가 지나간자리 게임보드인포를 0으로 만들음
+				gameBoardInfo[p.y - 1][p.x / 2 - 1] = 0;
+				//캐릭터 왼쪽으로 1칸 이동
+				p.x -= 2;
+			}
+			else if (rtn == -1)
+				DiePlayer();
+
+		}
+		//오른쪽키 누를때
+		//조건:캐릭터위치가 맵 안쪽에있고 &&
+		//게임보드인포상 오른쪽 값이 0일때
+		if (GetAsyncKeyState(VK_RIGHT) & 0x8000 &&
+			p.x < gBoardWidth * 2)
+		{
+			rtn = DetectCollisionForPlayer(p.x / 2 + 1, p.y);
+
+			if (rtn == 0)
+			{
+				SetCurrentCursorPos(p.x, p.y);
+				//캐릭터가 지나간자리를 공백으로만들기위해
+				printf("  ");
+				//캐릭터가 지나간자리 게임보드인포를 0으로 만들음
+				gameBoardInfo[p.y - 1][p.x / 2 - 1] = 0;
+				//캐릭터 오른쪽으로 1칸 이동
+				p.x += 2;
+			}
+			else if (rtn == -1)
+				DiePlayer();
+		}
+
+		//바닥 Y값(바닥까지 캐릭터가 떨어지게 하기위해 값 지정)
+		int floor_Y = gBoardHeight + 1;
+		//위에 키 누를때
+		//조건:캐릭터 t_jump값이 2보다 클때 &&
+		//캐릭터 아래 게임보드 인포값이 2 일때
+		if (GetAsyncKeyState(VK_UP) & 0x8000) {
+			rtn = DetectCollisionForPlayer(p.x / 2, p.y-1);
+			if (rtn == 0)
+			{
+				SetCurrentCursorPos(p.x, p.y);
+				//캐릭터가 지나간자리를 공백으로만들기위해
+				printf("  ");
+				//캐릭터가 지나간자리 게임보드인포를 0으로 만들음
+				gameBoardInfo[p.y - 1][p.x / 2 - 1] = 0;
+				//캐릭터 오른쪽으로 1칸 이동
+				p.y -= 1;
+			}
+		}
+		if (GetAsyncKeyState(VK_DOWN) & 0x8000) {
+			rtn = DetectCollisionForPlayer(p.x / 2, p.y+1);
+			if (rtn == 0)
+			{
+				SetCurrentCursorPos(p.x, p.y);
+				//캐릭터가 지나간자리를 공백으로만들기위해
+				printf("  ");
+				//캐릭터가 지나간자리 게임보드인포를 0으로 만들음
+				gameBoardInfo[p.y - 1][p.x / 2 - 1] = 0;
+				//캐릭터 오른쪽으로 1칸 이동
+				p.y += 1;
+			}
+		}
+	}
+	//무적아이템 먹었을때
+	else if (p.defyingGravity == 0 && p.invincibility == 1) {
+		finish2 = clock();
+		duration2 = (double)(finish2 - start2) / CLOCKS_PER_SEC;
+		UpdateGameUI();
+		if (duration2 > INVINCIBILITY_TIME) {
+			p.invincibility = 0;
+		}
+		if (GetAsyncKeyState(VK_LEFT) & 0x8000 &&
+			p.x > 2)
+		{
+			rtn = DetectCollisionForPlayer(p.x / 2 - 1, p.y);
+
+			if (rtn == 0)
+			{
+				SetCurrentCursorPos(p.x, p.y);
+				//캐릭터가 지나간자리를 공백으로만들기위해
+				printf("  ");
+				//캐릭터가 지나간자리 게임보드인포를 0으로 만들음
+				gameBoardInfo[p.y - 1][p.x / 2 - 1] = 0;
+				//캐릭터 왼쪽으로 1칸 이동
+				p.x -= 2;
+			}
+
+		}
+		if (GetAsyncKeyState(VK_RIGHT) & 0x8000 &&
+			p.x < gBoardWidth * 2)
+		{
+			rtn = DetectCollisionForPlayer(p.x / 2 + 1, p.y);
+
+			if (rtn == 0)
+			{
+				SetCurrentCursorPos(p.x, p.y);
+				//캐릭터가 지나간자리를 공백으로만들기위해
+				printf("  ");
+				//캐릭터가 지나간자리 게임보드인포를 0으로 만들음
+				gameBoardInfo[p.y - 1][p.x / 2 - 1] = 0;
+				//캐릭터 오른쪽으로 1칸 이동
+				p.x += 2;
+			}
+		}
+
+		//바닥 Y값(바닥까지 캐릭터가 떨어지게 하기위해 값 지정)
+		int floor_Y = gBoardHeight + 1;
+		if (GetAsyncKeyState(VK_UP) & 0x8000
+			&& p.t_jump >= 2)
+		{
+			rtn = DetectCollisionForPlayer(p.x / 2, p.y + 1);
+
+			//캐릭터의 t_jump값을 0으로만들음
+			if (rtn == 1 || rtn == -1)
+				p.t_jump = 0;
+		}
+
+		SetCurrentCursorPos(p.x, p.y);
+		//캐릭터가 지나간자리를 공백으로만들기위해(점프했을때)
+		printf("  ");
+		//캐릭터가 지나간자리 게임보드인포를 0으로 만들음(점프했을때)
+		gameBoardInfo[p.y - 1][p.x / 2 - 1] = 0;
+
+		//점프
+		//캐릭터가 맵 바닥보다 높이 있고 
+		//&& 캐릭터 t_jump 가 2보다 크고
+		//&& 캐릭터 아래 게임보드인포값이 0일때
+
+		//아래
+		if (p.y < floor_Y
+			&& p.t_jump >= 2)
+		{
+			rtn = DetectCollisionForPlayer(p.x / 2, p.y + 1);
+
+			//캐릭터 아래로 내리기
+			if (rtn == 0)
+				p.y += 1;
+		}
+
+		//캐릭터 t_jump 가 2보다작을때(up을 눌러서 t_jump가 0이됐을때)
+		if (p.t_jump < 2) {
+			if (p.y > 1)
+			{
+				rtn = DetectCollisionForPlayer(p.x / 2, p.y - 1);
+
+				if (rtn == 0)
+					p.y -= 1;
+
+			}
+			p.t_jump += 0.6;
+		}
+	}
+	//중력무시아이템과 무적아이템 둘다 먹었을때
+	else if (p.defyingGravity == 1 && p.invincibility == 1) {
+		finish1 = clock();
+		finish2 = clock();
+		duration1 = (double)(finish1 - start1) / CLOCKS_PER_SEC;
+		duration2 = (double)(finish2 - start2) / CLOCKS_PER_SEC;
+		UpdateGameUI();
+		if (duration1 > DEFYING_GRAVITY_TIME) {
+			p.defyingGravity = 0;
+		}
+		if (duration2 > INVINCIBILITY_TIME) {
+			p.invincibility = 0;
+		}
+		if (GetAsyncKeyState(VK_LEFT) & 0x8000 &&
+			p.x > 2)
+		{
+			rtn = DetectCollisionForPlayer(p.x / 2 - 1, p.y);
+
+			if (rtn == 0)
+			{
+				SetCurrentCursorPos(p.x, p.y);
+				//캐릭터가 지나간자리를 공백으로만들기위해
+				printf("  ");
+				//캐릭터가 지나간자리 게임보드인포를 0으로 만들음
+				gameBoardInfo[p.y - 1][p.x / 2 - 1] = 0;
+				//캐릭터 왼쪽으로 1칸 이동
+				p.x -= 2;
+			}
+		}
+		//오른쪽키 누를때
+		//조건:캐릭터위치가 맵 안쪽에있고 &&
+		//게임보드인포상 오른쪽 값이 0일때
+		if (GetAsyncKeyState(VK_RIGHT) & 0x8000 &&
+			p.x < gBoardWidth * 2)
+		{
+			rtn = DetectCollisionForPlayer(p.x / 2 + 1, p.y);
+
+			if (rtn == 0)
+			{
+				SetCurrentCursorPos(p.x, p.y);
+				//캐릭터가 지나간자리를 공백으로만들기위해
+				printf("  ");
+				//캐릭터가 지나간자리 게임보드인포를 0으로 만들음
+				gameBoardInfo[p.y - 1][p.x / 2 - 1] = 0;
+				//캐릭터 오른쪽으로 1칸 이동
+				p.x += 2;
+			}
+		}
+
+		//바닥 Y값(바닥까지 캐릭터가 떨어지게 하기위해 값 지정)
+		int floor_Y = gBoardHeight + 1;
+		//위에 키 누를때
+		//조건:캐릭터 t_jump값이 2보다 클때 &&
+		//캐릭터 아래 게임보드 인포값이 2 일때
+		if (GetAsyncKeyState(VK_UP) & 0x8000) {
+			rtn = DetectCollisionForPlayer(p.x / 2, p.y - 1);
+			if (rtn == 0)
+			{
+				SetCurrentCursorPos(p.x, p.y);
+				//캐릭터가 지나간자리를 공백으로만들기위해
+				printf("  ");
+				//캐릭터가 지나간자리 게임보드인포를 0으로 만들음
+				gameBoardInfo[p.y - 1][p.x / 2 - 1] = 0;
+				//캐릭터 오른쪽으로 1칸 이동
+				p.y -= 1;
+			}
+		}
+		if (GetAsyncKeyState(VK_DOWN) & 0x8000) {
+			rtn = DetectCollisionForPlayer(p.x / 2, p.y + 1);
+			if (rtn == 0)
+			{
+				SetCurrentCursorPos(p.x, p.y);
+				//캐릭터가 지나간자리를 공백으로만들기위해
+				printf("  ");
+				//캐릭터가 지나간자리 게임보드인포를 0으로 만들음
+				gameBoardInfo[p.y - 1][p.x / 2 - 1] = 0;
+				//캐릭터 오른쪽으로 1칸 이동
+				p.y += 1;
+			}
+		}
 	}
 }
 void DiePlayer()
@@ -911,24 +1219,17 @@ void DiePlayer()
 		int revive = 0;
 
 		p.isExtraLife = 0;
-		SetCurrentCursorPos(p.x * 2, p.y);
+		UpdateGameUI();
+		SetCurrentCursorPos(p.x, p.y);
 		printf("  ");
+		gameBoardInfo[p.y - 1][p.x / 2 - 1] = 0;
 
-		for (int y = 1; y <= gBoardHeight && revive; y++)
-		{
-			for (int x = 1; x <= gBoardWidth && revive; x++)
-			{
-				if (gameBoardInfo[y][x] == 820)
-				{
-					p.x = x * 2;
-					p.y = y;
-					revive = 1;
-				}
-			}
-		}
+		p.x = StartPosition.X;
+		p.y = StartPosition.Y;
 
-		SetCurrentCursorPos(p.x * 2, p.y);
+		SetCurrentCursorPos(p.x, p.y);
 		printf("●");
+		gameBoardInfo[p.y - 1][p.x / 2 - 1] = 900;
 	}
 		
 }
@@ -973,7 +1274,29 @@ int LoadStage(Node* mObjListHead)
 				obj.y = y;
 				obj.delay = gameBoardInfo[y][x] % 10 * 200;
 				addObj(obj, mObjListHead);
+				break;
+			case 5:
+				obj.objId = gameBoardInfo[y][x];
+				obj.x = x;
+				obj.y = y;
+				obj.delay = 800;
+				addObj(obj, mObjListHead);
+				switch (parseInfo(obj.objId, 2)) {
+				case 2:
+				case 4:
+					gameBoardInfo[y][x + 1] = 500; // <-실행안됨. 수정필요
+					gameBoardInfo[y][x - 1] = 500;
+					break;
+				case 3:
+				case 1:
+					gameBoardInfo[y + 1][x] = 500; // <-실행안됨. 수정필요
+					gameBoardInfo[y - 1][x] = 500; 
+					break;
+				}
+				
+				break;
 			}
+			
 		}
 	}
 
@@ -1036,13 +1359,37 @@ void DrawGameBoard()
 			case 5:
 				printf("▤");
 				//방향, 거리 결정 필요
+
 				break;
 			case 6:
-				printf("┌");
+				SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), BLUE);
+				printf("■");
+				SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), WHITE);
 				//방향 결정 필요
 				break;
 			case 7:
-				printf("♣");
+				switch (ten)
+				{
+				case 1:
+					SetCurrentCursorPos(x * 2, y);
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), BLUE);
+					printf("♣");    //중력무시
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), WHITE);
+					break;
+				case 2:
+					SetCurrentCursorPos(x * 2, y);
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), PURPLE);
+					printf("♠");    //무적
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), WHITE);
+					break;
+				case 3:
+					SetCurrentCursorPos(x * 2, y);
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), RED);
+					printf("♥");
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), WHITE);
+				}
+				//사이드퀘스트 가산 필요
+				break;
 				//아이템 종류 결정 필요
 				break;
 			case 8:
@@ -1057,6 +1404,8 @@ void DrawGameBoard()
 				case 2:
 					p.x = x * 2;
 					p.y = y;
+					StartPosition.X = p.x;
+					StartPosition.Y = p.y;
 					SetCurrentCursorPos(x * 2, y);
 					printf("●");
 					break;
@@ -1137,7 +1486,9 @@ void DrawGameBoardPart()
 				//방향, 거리 결정 필요
 				break;
 			case 6:
-				printf("┌");
+				SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), BLUE);
+				printf("■");
+				SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), WHITE);
 				//방향 결정 필요
 				break;
 			case 7:
@@ -1206,7 +1557,10 @@ void UserBlockManage()
 		}
 		else {
 			DeleteAllBlock();
-			ShowBlock(blockModel[UserBlockID[i]], WHITE);
+			if (UserBlockID[i] >= 28)
+				ShowBlock(blockModel[UserBlockID[i]], BLUE);
+			else
+				ShowBlock(blockModel[UserBlockID[i]], WHITE);
 		}
 		SetCurrentCursorPos(x + 2, y + 4);
 		printf("-0%d-", i % 4 + 1);
@@ -1228,7 +1582,7 @@ void BlockAllocator() // 초기블럭할당자.
 
 		CurrentUserBlock = 0;
 		for (int i = 0; i < MAXUSERBLOCK; i++) {
-			if (i < 7)
+			if (i < 8)
 			{
 				UserBlockID[i] = i * 4;
 				CurrentUserBlock++;
@@ -1237,10 +1591,25 @@ void BlockAllocator() // 초기블럭할당자.
 				UserBlockID[i] = -1;
 		}
 }
+void BlockListUpdate(int UseBlock)
+{
+	for (int i = UseBlock; i < MAXUSERBLOCK-1; i++)
+	{
+		UserBlockID[i] = UserBlockID[i + 1];
+		if (UserBlockID[i + 1] == -1) {
+			UserBlockID[i] = -1;
+			break;
+		}
+	}
+}
 void BlockBuild(int key)
 {
 	// 충돌이 발생하면 빨간색 위치는 자유자재로 움직일수 있고 충돌시 빨강
 	// 충돌시 설치 불가능
+	int color=WHITE;
+	int categori = 1;
+	if (UserBlockID[blockid] >= 28)
+		categori = 2;
 	SetCurrentCursorPos(prevbX, prevbY);
 	switch (key)
 		{
@@ -1281,7 +1650,9 @@ void BlockBuild(int key)
 			if (!(DetectCollisionForBlock(bX, bY, blockModel[prevblockid])))
 			{
 				UserBlockID[blockid] = -1;
-				MakeBlock(blockModel[prevblockid]);
+				//BlockListUpdate(blockid);
+				
+				MakeBlock(blockModel[prevblockid],categori);
 				UserBlockManage();
 				prevblockid = -1;
 				MODE = 0;
@@ -1307,17 +1678,25 @@ void BlockBuild(int key)
 		if (collosion_redraw == 1)
 		{
 			DrawGameBoardPart();
+			//DrawGameBoard();
 			collosion_redraw = 0;
 		}
 	}
 	SetCurrentCursorPos(bX, bY);
+	if (UserBlockID[blockid] >= 28)
+		color = BLUE;
 	if ((DetectCollisionForBlock(bX, bY, blockModel[UserBlockID[blockid]])))
 	{
 		ShowBlock(blockModel[UserBlockID[blockid]], LIGHTRED);
 		collosion_redraw = 1;
 	}
 	else
-		ShowBlock(blockModel[UserBlockID[blockid]], WHITE);
+		ShowBlock(blockModel[UserBlockID[blockid]], color);
+	color = WHITE;
+	if (UserBlockID[blockid] == -1) {
+		BlockListUpdate(blockid);
+		UserBlockManage();
+	}
 	prevbX = bX, prevbY = bY;
 	prevblockid = UserBlockID[blockid];
 	
@@ -1353,16 +1732,24 @@ void DeleteBlock(char blockInfo[4][4])
 	}
 	SetCurrentCursorPos(curPos.X, curPos.Y);
 }
-void MakeBlock(char blockInfo[4][4])
+void MakeBlock(char blockInfo[4][4],int blockCategori)
 {
+	//1 기본블럭 2 파이프블럭
 	int x, y;
 	COORD curPos = GetCurrentCursorPos();
 	curPos.X = curPos.X - 2;
 	curPos.Y--;
 	for (y = 0; y < 4; y++) {
 		for (x = 0; x < 4; x++) {
-			if (blockInfo[y][x] == 1)
-				gameBoardInfo[y + curPos.Y][x + curPos.X / 2] = 100;
+				if (blockInfo[y][x] == 1)
+				{
+
+					if (blockCategori == 2)
+						gameBoardInfo[y + curPos.Y][x + curPos.X / 2] = 600;
+					else
+						gameBoardInfo[y + curPos.Y][x + curPos.X / 2] = 100;
+
+				}
 		}
 	}
 	SetCurrentCursorPos(curPos.X, curPos.Y);
@@ -1477,6 +1864,8 @@ int parseInfo(int info, int choice) {
 	}
 }
 
+// ******** 이동블럭의 날개는 id 5, 이동방향id 0의 더미블럭으로 구현
+
 void moveAll(Node* headNode) {
 	Node* it = headNode;
 	DWORD curTick = GetTickCount();
@@ -1489,21 +1878,21 @@ void moveAll(Node* headNode) {
 			int objType = parseInfo(it->obj.objId, 0);
 			int direction = parseInfo(it->obj.objId, 1);
 			int rotation = parseInfo(it->obj.objId, 2);
-			switch (objType) 
+			switch (objType)
 			{
 			case 3:
 				col = detectCollisionInDirection(it->obj.x, it->obj.y, direction);
 
-				if (col != 0) //총알 충돌처리 부분 - 플레이어 충돌처리 추가필요
-				{ 
+				if (col != 0 && col != 1000) //총알 충돌처리 부분 - 플레이어 충돌처리 추가필요
+				{
 					colCheck = 1;
 
-					if (col == 900)
+					if (col == 900 && p.invincibility == 0)
 						DiePlayer();
 				}
-				else 
+				else
 				{
-					it = moveDirection(it, direction);
+					it = thornMoveDirection(it, direction);
 				}
 				break;
 			case 4:
@@ -1532,7 +1921,23 @@ void moveAll(Node* headNode) {
 					addObj(shoot, headNode);
 				}
 				break;
+			case 5:
+				if (detectCollisionForMBlock(it->obj.x+ (direction + 1) % 2 * (direction - 3) * (-1), it->obj.y+ direction % 2 * (direction - 2), rotation) == 0) {
+					mBlockMoveDirection(it, direction, rotation);
+				}
+				else {
+					it->obj.objId = objType * 100 + (direction + 2) * 10 + rotation;
+					if (parseInfo(it->obj.objId, 1) > 4) {
+						it->obj.objId -= 40;
+					}
+					break;
+				}
+				
+
+				break;
 			}
+
+
 			it->lastUpdateTick = GetTickCount();
 		}
 		if ((it->obj.objId != 0 && parseInfo(it->obj.objId, 0) != 4) && ((it->obj.x < 1 || it->obj.x > gBoardWidth) || (it->obj.y < 1 || it->obj.y > gBoardHeight)))
@@ -1541,7 +1946,7 @@ void moveAll(Node* headNode) {
 		}
 
 		it = it->nextNode;
-		if (colCheck == 1)
+		if (colCheck == 1 && parseInfo(it->prevNode->obj.objId, 0) == 3)
 		{
 			removeObj(it->prevNode);
 		}
@@ -1573,7 +1978,7 @@ void removeObj(Node* it) {
 	free(it);
 }
 
-Node* moveDirection(Node* it, int direction) 
+Node* thornMoveDirection(Node* it, int direction) 
 {
 	
 	switch (direction) 
@@ -1582,11 +1987,11 @@ Node* moveDirection(Node* it, int direction)
 		SetCurrentCursorPos((it->obj.x + 1) * 2, it->obj.y);
 		printf("△");
 		SetCurrentCursorPos((it->obj.x + 1) * 2, it->obj.y + 1);
-		printf("  ");
-		gameBoardInfo[it->obj.y - 1][it->obj.x] = gameBoardInfo[it->obj.y][it->obj.x];
-		gameBoardInfo[it->obj.y][it->obj.x] = 0;
-		it->obj.y -= 1;
-		break;
+printf("  ");
+gameBoardInfo[it->obj.y - 1][it->obj.x] = gameBoardInfo[it->obj.y][it->obj.x];
+gameBoardInfo[it->obj.y][it->obj.x] = 0;
+it->obj.y -= 1;
+break;
 	case 2:
 		SetCurrentCursorPos((it->obj.x + 2) * 2, it->obj.y + 1);
 		printf("▷");
@@ -1619,12 +2024,64 @@ Node* moveDirection(Node* it, int direction)
 	return it;
 }
 
+Node* mBlockMoveDirection(Node* it, int direction, int rotation) {
+	int x = it->obj.x - 1;
+	int y = it->obj.y - 1;
+
+	int dx = (direction + 1) % 2 * (direction - 3) * (-1);
+	int dy = direction % 2 * (direction - 2);
+
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 3; j++){
+			if (movingBlocks[rotation % 2][i][j] == 1) {
+				gameBoardInfo[y + i][x + j] = 0;
+				SetCurrentCursorPos((x + j + 1)*2, y + i + 1);
+				printf("  ");
+			}
+		}
+	}
+
+	it->obj.x += dx;
+	it->obj.y += dy;
+	x = it->obj.x - 1;
+	y = it->obj.y - 1;
+
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 3; j++) {
+			if (movingBlocks[rotation % 2][i][j] == 1) {
+				gameBoardInfo[y + i][x + j] = 500;
+				SetCurrentCursorPos((x + j + 1)*2, y + i + 1);
+				printf("▤");
+			}
+		}
+		gameBoardInfo[it->obj.y][it->obj.x] = it->obj.objId;
+	}
+	
+
+	//이동하는 좌표에 투사체 삭제, 이동하는 좌표에 플레이어 밀어내기 추가필요
+}
+
 void freeAll(Node* headNode) {
 	Node* it = headNode->nextNode;
 	while (it->nextNode != NULL) {
 		it = it->nextNode;
 		removeObj(it->prevNode);
 	}
+}
+
+int detectCollisionForMBlock(int x, int y, int rotation) {
+	x--;
+	y--;
+	int check = 0;
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 3; j++){
+			if (gameBoardInfo[y + i][x + j] != 0 && gameBoardInfo[y + i][x + j] != 900 && parseInfo(gameBoardInfo[y + i][x + j], 0) != 3 && parseInfo(gameBoardInfo[y+i][x+j],0) != 5 && movingBlocks[rotation % 2][i][j] == 1) {
+				check = 1;
+				break;
+			}
+		}
+	}
+	return check;
 }
 
 void StatusPrint()
