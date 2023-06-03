@@ -61,7 +61,7 @@ int MovePlayer();
 
 //BLOCKMANAGE
 int UserBlockID[MAXUSERBLOCK] = { 0 };
-int StageNumber = 2;
+int StageNumber = 1;
 int CurrentUserBlock;
 int page = 1;
 int bX, bY;
