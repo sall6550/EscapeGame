@@ -93,10 +93,12 @@ int detectCollision(int x, int y);
 int parseInfo(int info, int choice);
 int detectCollisionMovingBlocks(int x, int y);
 void moveAll(Node* headNode);
-Node* moveDirection(Node* it, int direction);
+Node* thornMoveDirection(Node* it, int direction);
+Node* mBlockMoveDirection(Node* it, int direction, int rotation);
 void addObj(mObj obj, Node* listHeader);
 void removeObj(Node* it);
 void freeAll(Node* headNode);
+int detectCollisionForMBlock(int x, int y, int rotation);
 
 
 
@@ -1267,7 +1269,29 @@ int LoadStage(Node* mObjListHead)
 				obj.y = y;
 				obj.delay = gameBoardInfo[y][x] % 10 * 200;
 				addObj(obj, mObjListHead);
+				break;
+			case 5:
+				obj.objId = gameBoardInfo[y][x];
+				obj.x = x;
+				obj.y = y;
+				obj.delay = 800;
+				addObj(obj, mObjListHead);
+				switch (parseInfo(obj.objId, 2)) {
+				case 2:
+				case 4:
+					gameBoardInfo[y][x + 1] = 500; // <-실행안됨. 수정필요
+					gameBoardInfo[y][x - 1] = 500;
+					break;
+				case 3:
+				case 1:
+					gameBoardInfo[y + 1][x] = 500; // <-실행안됨. 수정필요
+					gameBoardInfo[y - 1][x] = 500; 
+					break;
+				}
+				
+				break;
 			}
+			
 		}
 	}
 
@@ -1330,6 +1354,7 @@ void DrawGameBoard()
 			case 5:
 				printf("▤");
 				//방향, 거리 결정 필요
+
 				break;
 			case 6:
 				printf("┌");
@@ -1794,6 +1819,8 @@ int parseInfo(int info, int choice) {
 	}
 }
 
+// ******** 이동블럭의 날개는 id 5, 이동방향id 0의 더미블럭으로 구현
+
 void moveAll(Node* headNode) {
 	Node* it = headNode;
 	DWORD curTick = GetTickCount();
@@ -1806,21 +1833,21 @@ void moveAll(Node* headNode) {
 			int objType = parseInfo(it->obj.objId, 0);
 			int direction = parseInfo(it->obj.objId, 1);
 			int rotation = parseInfo(it->obj.objId, 2);
-			switch (objType) 
+			switch (objType)
 			{
 			case 3:
 				col = detectCollisionInDirection(it->obj.x, it->obj.y, direction);
 
-				if (col != 0) //총알 충돌처리 부분 - 플레이어 충돌처리 추가필요
-				{ 
+				if (col != 0 && col != 1000) //총알 충돌처리 부분 - 플레이어 충돌처리 추가필요
+				{
 					colCheck = 1;
 
 					if (col == 900 && p.invincibility == 0)
 						DiePlayer();
 				}
-				else 
+				else
 				{
-					it = moveDirection(it, direction);
+					it = thornMoveDirection(it, direction);
 				}
 				break;
 			case 4:
@@ -1849,7 +1876,23 @@ void moveAll(Node* headNode) {
 					addObj(shoot, headNode);
 				}
 				break;
+			case 5:
+				if (detectCollisionForMBlock(it->obj.x+ (direction + 1) % 2 * (direction - 3) * (-1), it->obj.y+ direction % 2 * (direction - 2), rotation) == 0) {
+					mBlockMoveDirection(it, direction, rotation);
+				}
+				else {
+					it->obj.objId = objType * 100 + (direction + 2) * 10 + rotation;
+					if (parseInfo(it->obj.objId, 1) > 4) {
+						it->obj.objId -= 40;
+					}
+					break;
+				}
+				
+
+				break;
 			}
+
+
 			it->lastUpdateTick = GetTickCount();
 		}
 		if ((it->obj.objId != 0 && parseInfo(it->obj.objId, 0) != 4) && ((it->obj.x < 1 || it->obj.x > gBoardWidth) || (it->obj.y < 1 || it->obj.y > gBoardHeight)))
@@ -1858,7 +1901,7 @@ void moveAll(Node* headNode) {
 		}
 
 		it = it->nextNode;
-		if (colCheck == 1)
+		if (colCheck == 1 && parseInfo(it->prevNode->obj.objId, 0) == 3)
 		{
 			removeObj(it->prevNode);
 		}
@@ -1890,7 +1933,7 @@ void removeObj(Node* it) {
 	free(it);
 }
 
-Node* moveDirection(Node* it, int direction) 
+Node* thornMoveDirection(Node* it, int direction) 
 {
 	
 	switch (direction) 
@@ -1899,11 +1942,11 @@ Node* moveDirection(Node* it, int direction)
 		SetCurrentCursorPos((it->obj.x + 1) * 2, it->obj.y);
 		printf("△");
 		SetCurrentCursorPos((it->obj.x + 1) * 2, it->obj.y + 1);
-		printf("  ");
-		gameBoardInfo[it->obj.y - 1][it->obj.x] = gameBoardInfo[it->obj.y][it->obj.x];
-		gameBoardInfo[it->obj.y][it->obj.x] = 0;
-		it->obj.y -= 1;
-		break;
+printf("  ");
+gameBoardInfo[it->obj.y - 1][it->obj.x] = gameBoardInfo[it->obj.y][it->obj.x];
+gameBoardInfo[it->obj.y][it->obj.x] = 0;
+it->obj.y -= 1;
+break;
 	case 2:
 		SetCurrentCursorPos((it->obj.x + 2) * 2, it->obj.y + 1);
 		printf("▷");
@@ -1936,12 +1979,64 @@ Node* moveDirection(Node* it, int direction)
 	return it;
 }
 
+Node* mBlockMoveDirection(Node* it, int direction, int rotation) {
+	int x = it->obj.x - 1;
+	int y = it->obj.y - 1;
+
+	int dx = (direction + 1) % 2 * (direction - 3) * (-1);
+	int dy = direction % 2 * (direction - 2);
+
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 3; j++){
+			if (movingBlocks[rotation % 2][i][j] == 1) {
+				gameBoardInfo[y + i][x + j] = 0;
+				SetCurrentCursorPos((x + j + 1)*2, y + i + 1);
+				printf("  ");
+			}
+		}
+	}
+
+	it->obj.x += dx;
+	it->obj.y += dy;
+	x = it->obj.x - 1;
+	y = it->obj.y - 1;
+
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 3; j++) {
+			if (movingBlocks[rotation % 2][i][j] == 1) {
+				gameBoardInfo[y + i][x + j] = 500;
+				SetCurrentCursorPos((x + j + 1)*2, y + i + 1);
+				printf("▤");
+			}
+		}
+		gameBoardInfo[it->obj.y][it->obj.x] = it->obj.objId;
+	}
+	
+
+	//이동하는 좌표에 투사체 삭제, 이동하는 좌표에 플레이어 밀어내기 추가필요
+}
+
 void freeAll(Node* headNode) {
 	Node* it = headNode->nextNode;
 	while (it->nextNode != NULL) {
 		it = it->nextNode;
 		removeObj(it->prevNode);
 	}
+}
+
+int detectCollisionForMBlock(int x, int y, int rotation) {
+	x--;
+	y--;
+	int check = 0;
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 3; j++){
+			if (gameBoardInfo[y + i][x + j] != 0 && gameBoardInfo[y + i][x + j] != 900 && parseInfo(gameBoardInfo[y + i][x + j], 0) != 3 && parseInfo(gameBoardInfo[y+i][x+j],0) != 5 && movingBlocks[rotation % 2][i][j] == 1) {
+				check = 1;
+				break;
+			}
+		}
+	}
+	return check;
 }
 
 void StatusPrint()
