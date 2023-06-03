@@ -1,23 +1,5 @@
 #pragma once
 
-enum DIRECTION
-{
-    UP,
-    DOWN,
-    RIGHT,
-    LEFT
-};
-
-#define LARROW 75
-#define RARROW 77
-#define UARROW 72
-#define DARROW 80
-#define ENTER 13
-#define ESCAPE 27
-#define MaxUserBlock 20
-int score = 0;
-int controllable = 1;
-int blockID;
 char blockModel[][4][4] =
 {
     /* 첫 번째 블록
