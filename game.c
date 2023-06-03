@@ -5,9 +5,35 @@
 
 int gBoardHeight = 20;
 int gBoardWidth = 60;
-int gameBoardInfo[GBOARD_HEIGHT + 1][GBOARD_WIDTH + 2];
 int speed = 500 / 15;
 
+//아직 미구현
+//0:공백 1:블록■ 2:투과블록□ 3:가시△ 4:가시▽ 5:가시◁ 6:가시▷ 7:투사체발사블록▣ 8:움직이는 블록▤ 9:파이프블록┌ 10:파이프블록┐
+//11:┘12:└ 13:사이드퀘스트★ 14:중력무시 아이템♣ 15:적 무시 아이템♠ 16:1회 부활 아이템♥
+
+//현재 0:공백 1:가시 2:바닥 3:플레이어
+int gameBoardInfo[20][30]= {
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{1,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,1},
+};
 //SYSTEM
 COORD GetCurrentCursorPos();
 void SetCurrentCursorPos(int x, int y);
@@ -17,12 +43,12 @@ void RemoveCursor();
 int ShowMainMenu();
 void ShowGame();
 void ShowResult();
-int ShowPause();
 void DrawGameUI();
 void UpdateGameUI();
-
+int GamePause();
 void ClearConsole();
-
+void DrawGameBoard();
+void Player();
 
 int main()
 {
@@ -42,7 +68,7 @@ int main()
 		{
 			ShowGame();
 
-			control = ShowPause();
+			control = GamePause();
 
 			if (control == 0)
 				break;
@@ -137,7 +163,7 @@ void ShowGame()
 	DWORD startMsTime = GetTickCount();
 
 	DrawGameUI();
-
+	DrawGameBoard();
 	while (1)
 	{
 		DWORD curMsTime = GetTickCount();
@@ -155,6 +181,8 @@ void ShowGame()
 			SetCurrentCursorPos(71, 4);
 			printf("%02d:%02d", minute, second);
 		}
+		DrawGameBoard();
+		Player();
 	}
 }
 void ShowResult()
@@ -209,7 +237,7 @@ void UpdateGameUI()
 {
 
 }
-int ShowPause()
+int GamePause()
 {
 
 }
@@ -223,4 +251,38 @@ void ClearConsole()
 			printf("  ");
 		}
 	}
+}
+
+void DrawGameBoard()
+{
+	int x, y;
+	int cursX, cursY;
+	for (y = 0; y < 20; y++)
+	{
+		for (x = 0; x < 30; x++)
+		{
+			cursX = x * 2+2;
+			cursY = y+1;
+			SetCurrentCursorPos(cursX, cursY);
+			if (gameBoardInfo[y][x] == 0)
+			{
+				printf("  ");
+			}
+			else if (gameBoardInfo[y][x] == 1) {
+				printf("△");
+			}
+			else if (gameBoardInfo[y][x] == 2) { //바닥
+				printf("==");
+			}
+			else if (gameBoardInfo[y][x] == 3) { 
+				printf("■");
+			}
+			else { printf("  "); }
+		}
+	}
+}
+
+void Player()
+{
+
 }
