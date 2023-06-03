@@ -58,3 +58,8 @@ enum TEXTCOLOR
 #define THORNS 1
 #define BLOCK 2
 #define PLAYER 3
+
+
+//ITEM
+#define DEFYING_GRAVITY_TIME 5   //중력무시아이템 시간설정
+#define INVINCIBILITY_TIME 5 //무적아이템 시간설정
