@@ -59,6 +59,7 @@ void ClearGameBoard();
 
 //PLAYER
 Player p;
+COORD StartPosition;
 void InitPlayer();
 void ControlCharacter(int key);
 int DetectCollisionForPlayer(int x, int y);
@@ -480,12 +481,16 @@ void UpdateGameUI()
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), WHITE);
 
 	//1회부활 아이템 표시
+	SetCurrentCursorPos((gBoardWidth * 2) + (statusBoardWidth / 2) + 2, 6);
 	if (p.isExtraLife)
 	{
-		SetCurrentCursorPos((gBoardWidth * 2) + (statusBoardWidth / 2) + 2, 7);
 		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), RED);
-		printf("♥ ");
+		printf("♥");
 		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), WHITE);
+	}
+	else
+	{
+		printf("  ");
 	}
 }
 int GamePause()
@@ -772,7 +777,13 @@ int DetectCollisionForPlayer(int x, int y)
 		//ITEM
 		if (colID == 7)
 		{
-
+			switch (type)
+			{
+			case 3:
+				p.isExtraLife = 1;
+				UpdateGameUI();
+				break;
+			}
 		}
 		//POINT
 		else if (colID == 8)
@@ -911,24 +922,17 @@ void DiePlayer()
 		int revive = 0;
 
 		p.isExtraLife = 0;
-		SetCurrentCursorPos(p.x * 2, p.y);
+		UpdateGameUI();
+		SetCurrentCursorPos(p.x, p.y);
 		printf("  ");
+		gameBoardInfo[p.y - 1][p.x / 2 - 1] = 0;
 
-		for (int y = 1; y <= gBoardHeight && revive; y++)
-		{
-			for (int x = 1; x <= gBoardWidth && revive; x++)
-			{
-				if (gameBoardInfo[y][x] == 820)
-				{
-					p.x = x * 2;
-					p.y = y;
-					revive = 1;
-				}
-			}
-		}
+		p.x = StartPosition.X;
+		p.y = StartPosition.Y;
 
-		SetCurrentCursorPos(p.x * 2, p.y);
+		SetCurrentCursorPos(p.x, p.y);
 		printf("●");
+		gameBoardInfo[p.y - 1][p.x / 2 - 1] = 900;
 	}
 		
 }
@@ -1042,7 +1046,20 @@ void DrawGameBoard()
 				//방향 결정 필요
 				break;
 			case 7:
-				printf("♣");
+				switch (ten)
+				{
+				case 1:
+					break;
+				case 2:
+					break;
+				case 3:
+					SetCurrentCursorPos(x * 2, y);
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), RED);
+					printf("♥");
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), WHITE);
+				}
+				//사이드퀘스트 가산 필요
+				break;
 				//아이템 종류 결정 필요
 				break;
 			case 8:
@@ -1057,6 +1074,8 @@ void DrawGameBoard()
 				case 2:
 					p.x = x * 2;
 					p.y = y;
+					StartPosition.X = p.x;
+					StartPosition.Y = p.y;
 					SetCurrentCursorPos(x * 2, y);
 					printf("●");
 					break;
