@@ -12,6 +12,27 @@ enum DIRECTION
     NONE
 };
 
+//TEXT COLOR
+enum TEXTCOLOR
+{
+    BLACK,
+    BLUE,
+    GREEN,
+    AQUA,
+    RED,
+    PURPLE,
+    YELLOW,
+    WHITE,
+    GRAY,
+    LIGHTBLUE,
+    LIGHTGREEN,
+    LIGHTAQUA,
+    LIGHTRED,
+    LIGHTPURPLE,
+    LIGHTYELLOW,
+    BRIGHTWHITE
+};
+
 
 //USER INPUT
 #define LARROW 75
@@ -28,8 +49,8 @@ enum DIRECTION
 #define R_ROTATE 101
 //SYSTEM
 #define MAXUSERBLOCK 20
-#define MAX_HEIGHT 30
-#define MAX_WIDTH 40
+#define MAX_HEIGHT 65
+#define MAX_WIDTH 236
 
 
 //OBJECT

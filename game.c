@@ -32,18 +32,21 @@ void SetCurrentCursorPos(int x, int y);
 
 
 //DRAW
-void RemoveCursor();
+void ControlConsoleWindow();
 int ShowMainMenu();
 int ShowGame();
 void ShowResult();
 void DrawGameUI();
-void UpdateGameUI(int time);
+void UpdateTimeUI(int time);
+void UpdateGameUI();
 int GamePause();
 void ClearConsole();
 
 
 //MAP
 int gameBoardInfo[MAX_HEIGHT][MAX_WIDTH] = { 0 };
+int SideQuest = 0;
+void InitStageInfo();
 int LoadStage(Node* mObjListHead);
 void DrawGameBoard();
 
@@ -93,7 +96,7 @@ void freeAll(Node* headNode);
 int main()
 {
 	srand(time(NULL));
-	RemoveCursor();
+	ControlConsoleWindow();
 
 	int control;
 
@@ -136,28 +139,57 @@ void SetCurrentCursorPos(int x, int y)
 
 
 //DRAW
-void RemoveCursor()
+void ControlConsoleWindow()
 {
 	CONSOLE_CURSOR_INFO curInfo;
 	GetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &curInfo);
 	curInfo.bVisible = 0;
 	SetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &curInfo);
+
+	system("mode con cols=236 lines=65 | title Escape From Sejong");
 }
 int ShowMainMenu()
 {
 	int select = 1;
 	//1 = 게임시작 / 0 = 게임종료
 
-	SetCurrentCursorPos(50, 10);
-	printf("ESCAPE FROM SEJONG");
+	SetCurrentCursorPos(70, 10);
+	printf(" #######   #####     ####     ##     ######   #######           #######  ######     ###    ##   ## ");
+	SetCurrentCursorPos(70, 11);
+	printf(" ##       ##   ##   ##  ##    ##     ##   ##  ##                ##       ##   ##   ## ##   ##   ## ");
+	SetCurrentCursorPos(70, 12);
+	printf(" ##       ##       ##        ####    ##   ##  ##                ##       ##   ##  ##   ##  ### ### ");
+	SetCurrentCursorPos(70, 13);
+	printf(" #####     #####   ##        ## #    ######   #####             #####    ######   ##   ##  ## # ## ");
+	SetCurrentCursorPos(70, 14);
+	printf(" ##            ##  ##       ######   ##       ##                ##       ## ##    ##   ##  ## # ## ");
+	SetCurrentCursorPos(70, 15);
+	printf(" ##       ##   ##   ##  ##  ##   #   ##       ##                ##       ##  ##    ## ##   ##   ## ");
+	SetCurrentCursorPos(70, 16);
+	printf(" #######   #####     ####  ###   ##  ##       #######           ##       ##   ##    ###    ##   ## ");
 
-	SetCurrentCursorPos(54, 20);
+	SetCurrentCursorPos(91, 19);
+	printf("  #####   #######    ####     ###    ##   ##    ####  ");
+	SetCurrentCursorPos(91, 20);
+	printf(" ##   ##  ##           ##    ## ##   ###  ##   ##  ## ");
+	SetCurrentCursorPos(91, 21);
+	printf(" ##       ##           ##   ##   ##  ###  ##  ##      ");
+	SetCurrentCursorPos(91, 22);
+	printf("  #####   #####        ##   ##   ##  ## # ##  ##      ");
+	SetCurrentCursorPos(91, 23);
+	printf("      ##  ##       ##  ##   ##   ##  ## # ##  ##  ### ");
+	SetCurrentCursorPos(91, 24);
+	printf(" ##   ##  ##       ##  ##    ## ##   ##  ###   ##  ## ");
+	SetCurrentCursorPos(91, 25);
+	printf("  #####   #######   ####      ###    ##   ##    ##### ");
+
+	SetCurrentCursorPos(115, 40);
 	printf("GAME START");
 
-	SetCurrentCursorPos(57, 22);
+	SetCurrentCursorPos(118, 44);
 	printf("EXIT");
 
-	SetCurrentCursorPos(50, 20);
+	SetCurrentCursorPos(108, 40);
 	printf("▶");
 
 	while (1)
@@ -173,9 +205,9 @@ int ShowMainMenu()
 				if (select == 1)
 				{
 					select = 0;
-					SetCurrentCursorPos(50, 20);
+					SetCurrentCursorPos(108, 40);
 					printf("  ");
-					SetCurrentCursorPos(53, 22);
+					SetCurrentCursorPos(111, 44);
 					printf("▶");
 				}
 				break;
@@ -183,9 +215,9 @@ int ShowMainMenu()
 				if (select == 0)
 				{
 					select = 1;
-					SetCurrentCursorPos(53, 22);
+					SetCurrentCursorPos(111, 44);
 					printf("  ");
-					SetCurrentCursorPos(50, 20);
+					SetCurrentCursorPos(108, 40);
 					printf("▶");
 				}
 				break;
@@ -202,10 +234,12 @@ int ShowGame()
 	int time = 0;
 	int key = 0;
 	
-	DWORD startMsTime = GetTickCount();
+	DWORD countMsTime = GetTickCount();
 
-	Node mObjListTail = { .nextNode = NULL, .prevNode = NULL };
-	Node mObjListHead = { .nextNode = &mObjListTail, .prevNode = NULL };
+	mObj dummy = { 0,0,0,0 };
+
+	Node mObjListTail = { .obj = dummy, .nextNode = NULL, .prevNode = NULL };
+	Node mObjListHead = { .obj = dummy, .nextNode = &mObjListTail, .prevNode = NULL };
 	mObjListTail.prevNode = &mObjListHead;
 
 	InitPlayer();
@@ -217,28 +251,25 @@ int ShowGame()
 	while (1)
 	{
 		//플레이어 이동함수 여기넣었습니다
-		if(MODE==0)
+		if (MODE == 0)
 			MovePlayer();
 		
 		PrintPlayer();
-		//PrintPlay()함수안으로이동
-		//Sleep(40);
-		//조정시 플레이어속도조정
-		
 
 		DWORD curMsTime = GetTickCount();
 
-		if ((curMsTime - startMsTime) * 0.001f >= time + 1)
+		if ((curMsTime - countMsTime) * 0.001f >= 1)
 		{
-			time = (curMsTime - startMsTime) * 0.001f;
+			countMsTime = GetTickCount();
+			time++;
 
-			UpdateGameUI(time);
+			UpdateTimeUI(time);
 		}
 
 		if (_kbhit() != 0)
 		{
 			key = _getch();
-			if (key == BUILD &&gameBoardInfo[p.y ][p.x/2-1] != 000)     //0 -> BASIC MODE 1 -> BUILD
+			if (key == BUILD &&gameBoardInfo[p.y ][p.x/2-1] != 000)     //0 -> MOVE MODE | 1 -> BUILD MOVE
 			{ 
 				if (MODE == 1)
 				{
@@ -270,7 +301,10 @@ int ShowGame()
 					return 0;
 				}
 				else
+				{
+					countMsTime = GetTickCount();
 					DrawGameBoard();
+				}
 				break;
 			case KB_N:
 				if (page >= 5)
@@ -301,81 +335,101 @@ void ShowResult()
 }
 void DrawGameUI()
 {
-	int statusBoardWidth = 28/*gBoardWidth + 8*/;
+	int statusBoardWidth = 28;
 	int statusBoardHeight = gBoardHeight;
 
-	for (int y = 0; y < gBoardHeight + 2; y += gBoardHeight + 1)
-		for (int x = 2; x < (gBoardWidth * 2) + statusBoardWidth + 2; x += 2)
-		{
-			SetCurrentCursorPos(x, y);
-			printf("─");
-		}
+	{
+		for (int y = 0; y < gBoardHeight + 2; y += gBoardHeight + 1)
+			for (int x = 2; x < (gBoardWidth * 2) + statusBoardWidth + 2; x += 2)
+			{
+				SetCurrentCursorPos(x, y);
+				printf("─");
+			}
 
-	for (int x = 0; x < (gBoardWidth * 2) + 3; x += (gBoardWidth * 2) + 2)
+		for (int x = 0; x < (gBoardWidth * 2) + 3; x += (gBoardWidth * 2) + 2)
+			for (int y = 1; y < gBoardHeight + 1; y++)
+			{
+				SetCurrentCursorPos(x, y);
+				printf("│");
+			}
+
 		for (int y = 1; y < gBoardHeight + 1; y++)
 		{
-			SetCurrentCursorPos(x, y);
+			SetCurrentCursorPos((gBoardWidth * 2) + statusBoardWidth + 2, y);
 			printf("│");
 		}
-
-	for (int y = 1; y < gBoardHeight + 1; y++)
-	{
-		SetCurrentCursorPos((gBoardWidth * 2) + statusBoardWidth + 2, y);
-		printf("│");
 	}
 
 	// 유저블록판그리기
-	int x, y;
-	x = (gBoardWidth * 2) + 6, y = gBoardHeight - 11;
-	for (int z = 1; z <= 3; z++) 
 	{
-		for (int x = (gBoardWidth * 2) + 2; x <= (gBoardWidth * 2) + 30; x += 2)
+		int x, y;
+		x = (gBoardWidth * 2) + 6, y = gBoardHeight - 1;
+		for (int z = 1; z <= 3; z++)
 		{
-			SetCurrentCursorPos(x, y);
-			if (x == (gBoardWidth * 2) + 2)
-				printf("├");
-			else if (x == (gBoardWidth * 2) + 30 && y == gBoardHeight + 1)
-				printf("┘");
-			else if (x == (gBoardWidth * 2) + 30)
-				printf("┤");
-			else
-				printf("─");
+			for (int x = (gBoardWidth * 2) + 2; x <= (gBoardWidth * 2) + 30; x += 2)
+			{
+				SetCurrentCursorPos(x, y);
+				if (x == (gBoardWidth * 2) + 2)
+					printf("├");
+				else if (x == (gBoardWidth * 2) + 30)
+					printf("┤");
+				else
+					printf("─");
+			}
+			y -= 6;
 		}
-		y += 6;
+		for (int y = gBoardHeight - 1; y >= gBoardHeight - 13; y--)
+		{
+			x = (gBoardWidth * 2) + 16;
+			SetCurrentCursorPos(x, y);
+			if (y == gBoardHeight - 13)
+				printf("┬");
+			else if (y == gBoardHeight - 1)
+				printf("┴");
+			else if (y == gBoardHeight - 7)
+				printf("┼");
+			else
+				printf("│");
+
+		}
 	}
-	for (int y = gBoardHeight - 1; y >= gBoardHeight - 11; y--) 
+
 	{
-		x = (gBoardWidth * 2) + 16;
-		SetCurrentCursorPos(x, y);
-		if (y == gBoardHeight - 11)
-			printf("┬");
-		else if (y == gBoardHeight - 1)
-			printf("┴");
-		else if (y == gBoardHeight - 5)
-			printf("┼");
-		else
-			printf("│");
-
+		SetCurrentCursorPos(0, 0);
+		printf("┌");
+		SetCurrentCursorPos((gBoardWidth * 2) + 2, gBoardHeight + 1);
+		printf("┴");
+		SetCurrentCursorPos((gBoardWidth * 2) + 2, 0);
+		printf("┬");
+		SetCurrentCursorPos(0, gBoardHeight + 1);
+		printf("└");
+		SetCurrentCursorPos((gBoardWidth * 2) + statusBoardWidth + 2, 0);
+		printf("┐");
+		SetCurrentCursorPos((gBoardWidth * 2) + statusBoardWidth + 2, gBoardHeight + 1);
+		printf("┘");
 	}
-
-	SetCurrentCursorPos(0, 0);
-	printf("┌");
-	SetCurrentCursorPos((gBoardWidth * 2) + 2, gBoardHeight + 1);
-	printf("┴");
-	SetCurrentCursorPos((gBoardWidth * 2) + 2, 0);
-	printf("┬");
-	SetCurrentCursorPos(0, gBoardHeight + 1);
-	printf("└");
-	SetCurrentCursorPos((gBoardWidth * 2) + statusBoardWidth + 2, 0);
-	printf("┐");
 
 	SetCurrentCursorPos((gBoardWidth * 2) + (statusBoardWidth / 2), 2);
 	printf("TIME");
 	SetCurrentCursorPos((gBoardWidth * 2) + (statusBoardWidth / 2), 3);
 	printf("%02d:%02d", 0, 0);
 
+	SetCurrentCursorPos((gBoardWidth * 2) + (statusBoardWidth / 2), 5);
+	for (int i = 1; i <= 3; i++)
+	{
+		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), YELLOW);
+		if (i <= SideQuest)
+			printf("★");
+	}
+
+	if (p.isExtraLife)
+	{
+		SetCurrentCursorPos((gBoardWidth * 2) + (statusBoardWidth / 2) + 2, 7);
+		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), RED);
+		printf("♥ ");
+	}
 }
-void UpdateGameUI(int time)
+void UpdateTimeUI(int time)
 {
 	int minute = time / 60;
 	int second = time % 60;
@@ -386,20 +440,70 @@ void UpdateGameUI(int time)
 	SetCurrentCursorPos((gBoardWidth * 2) + 14, 3);
 	printf("%02d:%02d", minute, second);
 }
+void UpdateGameUI()
+{
+	int statusBoardWidth = 28;
+	int statusBoardHeight = gBoardHeight;
+
+	//사이드퀘스트 표시
+	SetCurrentCursorPos((gBoardWidth * 2) + (statusBoardWidth / 2), 5);
+	for (int i = 1; i <= 3; i++)
+	{
+		if (i <= SideQuest)
+		{
+			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), YELLOW);
+			printf("★");
+		}
+	}
+
+	//1회부활 아이템 표시
+	if (p.isExtraLife)
+	{
+		SetCurrentCursorPos((gBoardWidth * 2) + (statusBoardWidth / 2) + 2, 7);
+		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), RED);
+		printf("♥ ");
+	}
+}
 int GamePause()
 {
 	//0 = 메인 메뉴로 / 1 = 게임 재개
 
 	int select = 1;
 
-	for (int y = gBoardHeight / 2 - 4; y <= gBoardHeight / 2 + 4; y++)
+	for (int y = gBoardHeight / 2 - 6; y <= gBoardHeight / 2 + 6; y++)
 	{
 		for (int x = (gBoardWidth * 2) / 2 - 15; x <= (gBoardWidth * 2) / 2 + 15; x++)
 		{
 			SetCurrentCursorPos(x, y);
-			printf(" ");
+			printf("  ");
 		}
 	}
+
+	for (int y = gBoardHeight / 2 - 5; y <= gBoardHeight / 2 + 5; y += 10)
+	{
+		for (int x = gBoardWidth - 15; x <= gBoardWidth + 15; x++)
+		{
+			SetCurrentCursorPos(x, y);
+			printf("─");
+		}
+	}
+	for (int y = gBoardHeight / 2 - 5; y <= gBoardHeight / 2 + 5; y++)
+	{
+		for (int x = gBoardWidth - 15; x <= gBoardWidth + 15; x += 30)
+		{
+			SetCurrentCursorPos(x, y);
+			printf("│");
+		}
+	}
+
+	SetCurrentCursorPos(gBoardWidth - 15, gBoardHeight / 2 - 5);
+	printf("┌");
+	SetCurrentCursorPos(gBoardWidth + 15, gBoardHeight / 2 - 5);
+	printf("┐");
+	SetCurrentCursorPos(gBoardWidth + 15, gBoardHeight / 2 + 5);
+	printf("┘");
+	SetCurrentCursorPos(gBoardWidth - 15, gBoardHeight / 2 + 5);
+	printf("└");
 
 	SetCurrentCursorPos((gBoardWidth * 2) / 2 - 10, gBoardHeight / 2 - 3);
 	printf("G A M E   P A U S E D");
@@ -449,9 +553,9 @@ int GamePause()
 }
 void ClearConsole()
 {
-	for (int y = 0; y < 30; y++)
+	for (int y = 0; y < MAX_HEIGHT; y++)
 	{
-		for (int x = 0; x < 100; x++)
+		for (int x = 0; x < MAX_WIDTH; x++)
 		{
 			SetCurrentCursorPos(x, y);
 			printf("  ");
@@ -466,6 +570,8 @@ void InitPlayer()
 	p.x = 4;
 	p.y = 10;
 	p.t_jump = 2;
+	p.isDead = 0;
+	p.isExtraLife = 0;
 }
 void ControlCharacter(int key)
 {
@@ -593,8 +699,15 @@ int MovePlayer()
 
 
 //MAP
+//스테이지 진입전 초기화해줘야 할 정보들
+void InitStageInfo()
+{
+	SideQuest = 0;
+}
 int LoadStage(Node* mObjListHead)
 {
+	InitStageInfo();
+
 	char fileName[15];
 	FILE* fp;
 	int width, height;
@@ -621,7 +734,7 @@ int LoadStage(Node* mObjListHead)
 				obj.objId = gameBoardInfo[y][x];
 				obj.x = x;
 				obj.y = y;
-				obj.delay = 500;
+				obj.delay = gameBoardInfo[y][x]%10*100;
 				addObj(obj, mObjListHead);
 			}
 		}
@@ -633,6 +746,7 @@ void DrawGameBoard()
 {
 	int x, y;
 	int cursX, cursY;
+
 	for (y = 1; y <= gBoardHeight; y++)
 	{
 		for (x = 1; x <= gBoardWidth; x++)
@@ -699,7 +813,9 @@ void DrawGameBoard()
 				{
 				case 1:
 					SetCurrentCursorPos(x * 2, y);
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), YELLOW);
 					printf("★");
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), WHITE);
 					break;
 				case 2:
 					p.x = x * 2;
@@ -1160,6 +1276,11 @@ void moveAll(Node* headNode) {
 			}
 			it->lastUpdateTick = GetTickCount();
 		}
+		if ((it->obj.objId != 0) && ((it->obj.x <= 1 || it->obj.x > gBoardWidth) || (it->obj.y <= 1 || it->obj.y > gBoardHeight)))
+		{
+			colCheck = 1;
+		}
+
 		it = it->nextNode;
 		if (colCheck == 1) {
 			removeObj(it->prevNode);
@@ -1194,13 +1315,7 @@ void removeObj(Node* it) {
 
 Node* moveDirection(Node* it, int direction) 
 {
-	if ((it->obj.x <= 1 || it->obj.x > gBoardWidth) || (it->obj.y <= 1 || it->obj.y > gBoardHeight))
-	{
-		Node* rtn = it->nextNode;
-		removeObj(it);
-		return rtn;
-	}
-
+	
 	switch (direction) 
 	{
 	case 1:
