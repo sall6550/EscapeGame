@@ -50,8 +50,9 @@ void ClearConsole();
 int gameBoardInfo[MAX_HEIGHT][MAX_WIDTH] = { 0 };
 int SideQuest = 0;
 int StageClear = 0;
-int StageNumber = 1;
+int StageNumber = 3;
 int StageClearTime = 0;
+int score;
 void InitStageInfo();
 int LoadStage(Node* mObjListHead);
 void DrawGameBoard();
@@ -70,7 +71,7 @@ void DiePlayer();
 
 //BLOCKMANAGE
 int UserBlockID[MAXUSERBLOCK] = { 0 };
-int CurrentUserBlock;
+int CurrentUserBlock=0;
 int page = 1;
 int bX, bY;
 int blockid = 0;
@@ -81,6 +82,7 @@ void ShowRedBlock(char blockInfo[4][4]);
 */
 Node* Pipeblock_Changeobj(Node* it,int col,int direction);// 파이프블럭
 Node* changeObjLot(Node* it,int x,int y, int direction) ;
+void AddBlock(int blockid);
 void BlockListUpdate(int UseBlock);
 void BlockBuild(int key);
 void UserBlockManage();
@@ -90,7 +92,9 @@ void DeleteBlock(char blockinfo[4][4]);
 void DeleteAllBlock();
 void MakeBlock(char blockInfo[4][4]);
 int DetectCollisionForBlock(int x, int y, char blockInfo[4][4]);
-
+//pipeobjects
+int purple = 1; //
+void drawPurplePuzzle(int collosion);
 //MovingObjects
 int detectCollisionInDirection(int x, int y, int direction);
 int detectCollision(int x, int y);
@@ -121,9 +125,11 @@ int main()
 		if (ShowMainMenu() == 0)
 			break;
 		MODE = 0;
+		CurrentUserBlock = 0;
 		BlockAllocator();
 		while (1)
 		{
+			
 			//메인메뉴로 = 0 / 스테이지 클리어 = 1
 			control = ShowGame();
 			
@@ -264,13 +270,13 @@ int ShowGame()
 	DrawGameUI();
 	DrawGameBoard();
 	UserBlockManage();
-
+	purple = 1;
+	drawPurplePuzzle(0);
 	while (1)
 	{
 		//플레이어 이동함수 여기넣었습니다
 		if (MODE == 0)
 			MovePlayer();
-		
 		PrintPlayer();
 
 		DWORD curMsTime = GetTickCount();
@@ -473,6 +479,8 @@ void UpdateTimeUI(int time)
 
 	SetCurrentCursorPos((gBoardWidth * 2) + 14, 3);
 	printf("%02d:%02d", minute, second);
+	//printf("\n x:%d y:%d", p.x, p.y);
+
 }
 void UpdateGameUI()
 {
@@ -718,8 +726,13 @@ void ShowStageClear(int time)
 	SetCurrentCursorPos(gBoardWidth - 15, gBoardHeight / 2 + 5);
 	printf("└");
 
+	//시간보다 빨리 클리어하면 빨리 클리어 한 만큼 추가 점수, 늦게 클리어하면 늦게 클리어 한 만큼 감소
 	int additional = time > StageClearTime ? (StageClearTime - time) * 100 : ((StageClearTime - time) / (float)StageClearTime) * 3000;
-	int score = 25000 + additional + (SideQuest * 2500);
+	//감소된 시간이 20000 이상일경우 보정
+	additional = additional < -25000 ? -25000 : additional;
+	//별 1개당 2500 추가, 블럭 1개 아낄때마다 500점
+	additional = additional + (SideQuest * 2500) + (CurrentUserBlock * 500);
+	score = 22500 + additional + (SideQuest * 2500);
 
 	SetCurrentCursorPos((gBoardWidth * 2) / 2 - 10, gBoardHeight / 2 - 3);
 	printf("S T A G E   C L E A R!");
@@ -759,7 +772,7 @@ void ShowStageClear(int time)
 			break;
 		}
 	}
-
+	BlockAllocator();
 	return 0;
 }
 void ClearConsole()
@@ -813,7 +826,14 @@ int DetectCollisionForPlayer(int x, int y)
 
 	if ((x < 1 || x >= gBoardWidth+2) || (y < 1 || y >= gBoardHeight))
 		return 1;
-
+	if (colID == 1)
+	{
+		int type = gameBoardInfo[y - 1][x - 1] / 10 % 10;
+		if (type == 2)
+		{
+			drawPurplePuzzle(1);
+		}
+	}
 	if (colID == 3)
 		return -1;
 	else if (colID == 0 || colID == 7 || colID == 8)
@@ -1276,7 +1296,7 @@ int LoadStage(Node* mObjListHead)
 				obj.objId = gameBoardInfo[y][x];
 				obj.x = x;
 				obj.y = y;
-				obj.delay = gameBoardInfo[y][x] % 10 * 200;
+				obj.delay = gameBoardInfo[y][x] % 10 * 250;
 				addObj(obj, mObjListHead);
 				break;
 			case 5:
@@ -1342,8 +1362,21 @@ void DrawGameBoard()
 				printf("  ");
 				break;
 			case 1:
-				printf("■");
-				break;
+				switch (ten) {
+				case 0:
+					printf("■");
+					break;
+				case 1:
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), PURPLE);
+					printf("■");
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), WHITE);
+					break;
+				case 2:
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), PURPLE);
+					printf("●");
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), WHITE);
+					break;
+				}
 			case 2:
 				printf("□");
 				break;
@@ -1467,8 +1500,21 @@ void DrawGameBoardPart()
 				printf("  ");
 				break;
 			case 1:
-				printf("■");
-				break;
+				switch (ten) {
+				case 0:
+					printf("■");
+					break;
+				case 1:
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), PURPLE);
+					printf("■");
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), WHITE);
+					break;
+				case 2:
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), PURPLE);
+					printf("●");
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), WHITE);
+					break;
+				}
 			case 2:
 				printf("□");
 				break;
@@ -1496,6 +1542,7 @@ void DrawGameBoardPart()
 			case 5:
 				printf("▤");
 				//방향, 거리 결정 필요
+
 				break;
 			case 6:
 				SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), BLUE);
@@ -1504,7 +1551,28 @@ void DrawGameBoardPart()
 				//방향 결정 필요
 				break;
 			case 7:
-				printf("♣");
+				switch (ten)
+				{
+				case 1:
+					SetCurrentCursorPos(x * 2, y);
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), BLUE);
+					printf("♣");    //중력무시
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), WHITE);
+					break;
+				case 2:
+					SetCurrentCursorPos(x * 2, y);
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), PURPLE);
+					printf("♠");    //무적
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), WHITE);
+					break;
+				case 3:
+					SetCurrentCursorPos(x * 2, y);
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), RED);
+					printf("♥");
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), WHITE);
+				}
+				//사이드퀘스트 가산 필요
+				break;
 				//아이템 종류 결정 필요
 				break;
 			case 8:
@@ -1512,14 +1580,23 @@ void DrawGameBoardPart()
 				{
 				case 1:
 					SetCurrentCursorPos(x * 2, y);
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), YELLOW);
 					printf("★");
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), WHITE);
 					break;
 				case 2:
 					p.x = x * 2;
 					p.y = y;
+					StartPosition.X = p.x;
+					StartPosition.Y = p.y;
 					SetCurrentCursorPos(x * 2, y);
 					printf("●");
 					break;
+				case 3:
+					SetCurrentCursorPos(x * 2, y);
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), GREEN);
+					printf("※");
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), WHITE);
 				}
 				//사이드퀘스트 가산 필요
 				break;
@@ -1532,7 +1609,6 @@ void DrawGameBoardPart()
 				//이동블럭 전환점
 				break;
 			}
-
 		}
 	}
 }
@@ -1591,17 +1667,38 @@ void UserBlockManage()
 }
 void BlockAllocator() // 초기블럭할당자.
 {
+	//blockID == 28 pipe
+	
+	switch (StageNumber) 
+	{
+	case 1:
+		for(int i=0;i<MAXUSERBLOCK;i++)
+			UserBlockID[i] = -1;
+		AddBlock(0);
+		AddBlock(4);
+		AddBlock(8);
+		break;
+	case 2:
+		AddBlock(12);
+		AddBlock(16);
+		AddBlock((rand()%28)%4);
+		AddBlock((rand() % 28) % 4);
+		AddBlock((rand() % 28) % 4);
+		break;
+	case 3:
 
-		CurrentUserBlock = 0;
-		for (int i = 0; i < MAXUSERBLOCK; i++) {
-			if (i < 8)
-			{
-				UserBlockID[i] = i * 4;
-				CurrentUserBlock++;
-			}
-			else if(i>=8)
-				UserBlockID[i] = 28;
-		}
+		AddBlock(20);
+		AddBlock(24);
+		AddBlock(28);
+		break;
+	}
+	if (score /* - (30000 * StageNumber)*/ > 30000)
+		AddBlock((rand() % 28) % 4);
+}
+void AddBlock(int blockid)
+{
+	UserBlockID[CurrentUserBlock] = blockid;
+	CurrentUserBlock++;
 }
 void BlockListUpdate(int UseBlock)
 {
@@ -1613,6 +1710,7 @@ void BlockListUpdate(int UseBlock)
 			break;
 		}
 	}
+	CurrentUserBlock--;
 }
 void BlockBuild(int key)
 {
@@ -1807,7 +1905,49 @@ int DetectCollisionForBlock(int x, int y, char blockInfo[4][4])
 	}
 	return 0;
 }
+//PURPLE
+void drawPurplePuzzle(int collosion) {
 
+	int x = 0, y = 0;
+	if (StageNumber == 3)
+	{
+		if (collosion == 1)
+		{
+			if (purple == 1)
+				purple = 0;
+			else
+				purple = 1;
+		}
+		if (purple == 1)
+		{
+			x = 7, y = 0;
+			for (; y <= 4; y++)
+				gameBoardInfo[y][x] = 110;
+			gameBoardInfo[y - 1][x - 2] = 120;
+
+			x = 30, y = 0;
+			gameBoardInfo[33][35] = 0;
+			for (x = 21; x <= 31; x++)
+				for (y = 2; y <= 4; y++)
+					gameBoardInfo[y][x] = 0;
+		}
+		else
+		{
+			x = 7, y = 0;
+			for (; y <= 4; y++)
+				gameBoardInfo[y][x] = 0;
+
+			gameBoardInfo[y - 1][x - 2] = 0;
+
+			gameBoardInfo[33][35] = 120;
+			x = 30, y = 0;
+			for (x = 21; x <= 31; x++)
+				for (y = 2; y <= 4; y++)
+					gameBoardInfo[y][x] = 110;
+		}
+		DrawGameBoard();
+	}
+}
 
 //OBJECTS
 int detectCollision(int x, int y) { // 이동블럭 충돌체크까지 (이동블럭의 중심 제외 나머지 부분은 일반블럭과 동일한 100 리턴)
@@ -1931,6 +2071,10 @@ void moveAll(Node* headNode) {
 						if ((it->obj.x + 1) * 2 == p.x, it->obj.y + 1 ==p.y)
 							DiePlayer();
 						colCheck = 0;
+					}
+					else if (col == 120) // 보라색
+					{
+						drawPurplePuzzle(1);
 					}
 				}
 				else
@@ -2123,18 +2267,17 @@ Node* Pipeblock_Changeobj(Node* it, int col, int direction)
 
 Node* changeObjLot(Node* it, int x, int y,int direction) 
 {
-	
 
-	
+
 	SetCurrentCursorPos((it->obj.x + 1) * 2, it->obj.y + 1);
 	printf("  ");
 	// 현재 위치 공백
-	gameBoardInfo[it->obj.y +y][it->obj.x+x] = gameBoardInfo[it->obj.y][it->obj.x];
+	gameBoardInfo[it->obj.y +y][it->obj.x+x] += it->obj.objId;
 	gameBoardInfo[it->obj.y][it->obj.x] = 0;
 	it->obj.x += x;
 	it->obj.y += y;
 	SetCurrentCursorPos((it->obj.x + 1) * 2, it->obj.y + 1);
-	
+
 	switch (direction)
 	{
 	case 1:
