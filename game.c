@@ -862,6 +862,8 @@ void DrawGameBoardPart()
 		for (x = 0; x < 4; x++) {
 			SetCurrentCursorPos(curPos.X + (x * 2), curPos.Y + y);
 
+			if (curPos.X + (x * 2) > gBoardWidth * 2 || curPos.Y + y > gBoardHeight)
+				continue;
 			int temp, hundred, ten, one;
 
 			temp = gameBoardInfo[curPos.Y + y-1][curPos.X/2+x-1];
@@ -964,7 +966,7 @@ void UserBlockManage()
 		}
 		else {
 			DeleteAllBlock();
-			ShowBlock(blockModel[UserBlockID[i]],15);
+			ShowBlock(blockModel[UserBlockID[i]],7);
 		}
 		SetCurrentCursorPos(x + 2, y + 4);
 		printf("-0%d-", i % 4 + 1);
@@ -1075,7 +1077,7 @@ void BlockBuild(int key)
 		collosion_redraw = 1;
 	}
 	else
-		ShowBlock(blockModel[UserBlockID[blockid]],15);
+		ShowBlock(blockModel[UserBlockID[blockid]],7);
 	prevbX = bX, prevbY = bY;
 	prevblockid = UserBlockID[blockid];
 	
@@ -1094,7 +1096,7 @@ void ShowBlock(char blockInfo[4][4],int color)
 			}
 		}
 	}
-	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 15);
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 7);
 	SetCurrentCursorPos(curPos.X, curPos.Y);
 }
 
