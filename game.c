@@ -40,17 +40,21 @@ void DrawGameUI();
 void UpdateTimeUI(int time);
 void UpdateGameUI();
 int GamePause();
-int ShowGameOver();
+void ShowGameOver();
+void ShowStageClear(int time);
 void ClearConsole();
 
 
 //MAP
 int gameBoardInfo[MAX_HEIGHT][MAX_WIDTH] = { 0 };
 int SideQuest = 0;
-int StageNumber = 2;
+int StageClear = 0;
+int StageNumber = 1;
+int StageClearTime = 0;
 void InitStageInfo();
 int LoadStage(Node* mObjListHead);
 void DrawGameBoard();
+void ClearGameBoard();
 
 
 //PLAYER
@@ -110,9 +114,10 @@ int main()
 		BlockAllocator();
 		while (1)
 		{
+			//메인메뉴로 = 0 / 스테이지 클리어 = 1
+			control = ShowGame();
 			
-			
-			if (ShowGame() == 0)
+			if (control == 0)
 				break;
 		}
 	}
@@ -328,11 +333,16 @@ int ShowGame()
 			BlockBuild(key);
 
 		if (p.isDead)
-			if (ShowGameOver())
-			{
-				ClearConsole();
-				return 0;
-			}
+		{
+			ShowGameOver();
+			ClearConsole();
+			return 0;
+		}
+		if (StageClear)
+		{
+			ShowStageClear(time);
+			return 1;
+		}
 
 		moveAll(&mObjListHead);
 		//StatusPrint();
@@ -459,14 +469,15 @@ void UpdateGameUI()
 
 	//사이드퀘스트 표시
 	SetCurrentCursorPos((gBoardWidth * 2) + (statusBoardWidth / 2), 5);
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), YELLOW);
 	for (int i = 1; i <= 3; i++)
 	{
 		if (i <= SideQuest)
 		{
-			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), YELLOW);
 			printf("★");
 		}
 	}
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), WHITE);
 
 	//1회부활 아이템 표시
 	if (p.isExtraLife)
@@ -474,6 +485,7 @@ void UpdateGameUI()
 		SetCurrentCursorPos((gBoardWidth * 2) + (statusBoardWidth / 2) + 2, 7);
 		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), RED);
 		printf("♥ ");
+		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), WHITE);
 	}
 }
 int GamePause()
@@ -563,10 +575,8 @@ int GamePause()
 		}
 	}
 }
-int ShowGameOver()
+void ShowGameOver()
 {
-	int select = 1;
-
 	for (int y = gBoardHeight / 2 - 6; y <= gBoardHeight / 2 + 6; y++)
 	{
 		for (int x = (gBoardWidth * 2) / 2 - 15; x <= (gBoardWidth * 2) / 2 + 15; x++)
@@ -610,15 +620,98 @@ int ShowGameOver()
 	SetCurrentCursorPos((gBoardWidth * 2) / 2 - 9, gBoardHeight / 2 + 3);
 	printf("RETURN TO MAIN MENU");
 
-	Sleep(1000);
+	Sleep(1500);
 
 	while (1)
 	{
 		if (_kbhit() != 0)
 		{
-			return 1;
+			break;
 		}
 	}
+
+	return 0;
+}
+void ShowStageClear(int time)
+{
+	for (int y = gBoardHeight / 2 - 6; y <= gBoardHeight / 2 + 6; y++)
+	{
+		for (int x = (gBoardWidth * 2) / 2 - 15; x <= (gBoardWidth * 2) / 2 + 15; x++)
+		{
+			SetCurrentCursorPos(x, y);
+			printf("  ");
+		}
+	}
+
+	for (int y = gBoardHeight / 2 - 5; y <= gBoardHeight / 2 + 5; y += 10)
+	{
+		for (int x = gBoardWidth - 15; x <= gBoardWidth + 15; x++)
+		{
+			SetCurrentCursorPos(x, y);
+			printf("─");
+		}
+	}
+	for (int y = gBoardHeight / 2 - 5; y <= gBoardHeight / 2 + 5; y++)
+	{
+		for (int x = gBoardWidth - 15; x <= gBoardWidth + 15; x += 30)
+		{
+			SetCurrentCursorPos(x, y);
+			printf("│");
+		}
+	}
+
+	SetCurrentCursorPos(gBoardWidth - 15, gBoardHeight / 2 - 5);
+	printf("┌");
+	SetCurrentCursorPos(gBoardWidth + 15, gBoardHeight / 2 - 5);
+	printf("┐");
+	SetCurrentCursorPos(gBoardWidth + 15, gBoardHeight / 2 + 5);
+	printf("┘");
+	SetCurrentCursorPos(gBoardWidth - 15, gBoardHeight / 2 + 5);
+	printf("└");
+
+	int additional = time > StageClearTime ? (StageClearTime - time) * 100 : ((StageClearTime - time) / (float)StageClearTime) * 3000;
+	int score = 25000 + additional + (SideQuest * 2500);
+
+	SetCurrentCursorPos((gBoardWidth * 2) / 2 - 10, gBoardHeight / 2 - 3);
+	printf("S T A G E   C L E A R!");
+
+	SetCurrentCursorPos((gBoardWidth * 2) / 2 - 10, gBoardHeight / 2 - 1);
+	printf("SCORE");
+	SetCurrentCursorPos((gBoardWidth * 2) / 2 - 10, gBoardHeight / 2);
+	printf("%d", score);
+
+	SetCurrentCursorPos((gBoardWidth * 2) / 2 + 6, gBoardHeight / 2 - 1);
+	printf("GRADE");
+	SetCurrentCursorPos((gBoardWidth * 2) / 2 + 6, gBoardHeight / 2);
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), YELLOW);
+	for (int i = 1; i <= 3; i++)
+		if (score > i * 10000)
+			printf("★");
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), WHITE);
+
+	SetCurrentCursorPos((gBoardWidth * 2) / 2 - 8, gBoardHeight / 2 + 2);
+	printf("PRESS ANY KEY TO");
+	SetCurrentCursorPos((gBoardWidth * 2) / 2 - 9, gBoardHeight / 2 + 3);
+	printf("MOVE TO NEXT STAGE");
+
+	
+
+	StageNumber++;
+
+
+	Sleep(1500);
+
+	while (1)
+	{
+		if (_kbhit() != 0)
+		{
+			ClearConsole();
+			ClearGameBoard();
+			break;
+		}
+	}
+
+	return 0;
 }
 void ClearConsole()
 {
@@ -673,7 +766,31 @@ int DetectCollisionForPlayer(int x, int y)
 	if (colID == 3)
 		return -1;
 	else if (colID == 0 || colID == 7 || colID == 8)
+	{
+		int type = gameBoardInfo[y - 1][x - 1] / 10 % 10;
+
+		//ITEM
+		if (colID == 7)
+		{
+
+		}
+		//POINT
+		else if (colID == 8)
+		{
+			switch (type)
+			{
+			case 1:
+				SideQuest++;
+				UpdateGameUI();
+				break;
+			case 3:
+				StageClear = 1;
+				break;
+			}
+		}
+
 		return 0;
+	}
 	else
 		return 1;
 }
@@ -822,6 +939,7 @@ void DiePlayer()
 void InitStageInfo()
 {
 	SideQuest = 0;
+	StageClear = 0;
 }
 int LoadStage(Node* mObjListHead)
 {
@@ -837,7 +955,7 @@ int LoadStage(Node* mObjListHead)
 	if (fp == NULL)
 		return -1;
 
-	fscanf(fp, "%d %d", &width, &height);
+	fscanf(fp, "%d %d %d", &width, &height, &StageClearTime);
 	gBoardWidth = width;
 	gBoardHeight = height;
 
@@ -942,6 +1060,11 @@ void DrawGameBoard()
 					SetCurrentCursorPos(x * 2, y);
 					printf("●");
 					break;
+				case 3:
+					SetCurrentCursorPos(x * 2, y);
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), GREEN);
+					printf("※");
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), WHITE);
 				}
 				//사이드퀘스트 가산 필요
 				break;
@@ -954,21 +1077,6 @@ void DrawGameBoard()
 				//이동블럭 전환점
 				break;
 			}
-
-			//if (gameBoardInfo[y][x] == 0)
-			//{
-			//	printf("  ");
-			//}
-			//else if (gameBoardInfo[y][x] == 1) {
-			//	printf("△");
-			//}
-			//else if (gameBoardInfo[y][x] == 2) { //바닥
-			//	printf("==");
-			//}
-			//else if (gameBoardInfo[y][x] == 3) { 
-			//	printf("■");
-			//}
-			//else { printf("  "); }
 		}
 	}
 }
@@ -1062,6 +1170,19 @@ void DrawGameBoardPart()
 				break;
 			}
 
+		}
+	}
+}
+void ClearGameBoard()
+{
+	int x, y;
+	int cursX, cursY;
+
+	for (y = 1; y <= gBoardHeight; y++)
+	{
+		for (x = 1; x <= gBoardWidth; x++)
+		{
+			gameBoardInfo[y - 1][x - 1] = 0;
 		}
 	}
 }
