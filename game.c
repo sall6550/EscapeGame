@@ -221,7 +221,8 @@ int ShowGame()
 			MovePlayer();
 		
 		PrintPlayer();
-		Sleep(40);
+		//PrintPlay()함수안으로이동
+		//Sleep(40);
 		//조정시 플레이어속도조정
 		
 
@@ -289,7 +290,7 @@ int ShowGame()
 		if (MODE == 1 && key !=-1 && key !=BUILD)
 			BlockBuild(key);
 		moveAll(&mObjListHead);
-		StatusPrint();
+		//StatusPrint();
 		key = -1;
 	}
 	freeAll(&mObjListHead);
@@ -491,7 +492,7 @@ int DetectCollisionForPlayer(int x, int y)
 
 	int colID = gameBoardInfo[y - 1][x - 1] / 100;
 
-	if ((x < 1 || x >= gBoardWidth) || (y < 1 || y >= gBoardHeight))
+	if ((x < 1 || x >= gBoardWidth+2) || (y < 1 || y >= gBoardHeight))
 		return 1;
 
 	if (colID == 3 /*// colID == 총알*/)
@@ -585,7 +586,7 @@ int MovePlayer()
 			//p.y -= floor(p.t_jump);
 		}
 		//점프를 그만하게하기위한 t_jump값 조정
-		p.t_jump += 0.4;
+		p.t_jump += 0.6;
 
 	}
 }
@@ -1291,4 +1292,5 @@ void PrintPlayer()
 		gameBoardInfo[p.y - 1][p.x / 2 - 1] = 900;
 	}*/
 	gameBoardInfo[p.y - 1][p.x / 2 - 1] = 900;
+	Sleep(80);
 }
