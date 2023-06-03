@@ -241,9 +241,6 @@ int ShowGame()
 				page--;
 				UserBlockManage();
 				break;
-			case 'z': // Å×½ºÆ®
-				SetCurrentCursorPos(0, 30);
-				printf("%d", detectCollision(2, 1));
 			}
 
 		}
