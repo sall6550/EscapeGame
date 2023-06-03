@@ -14,7 +14,7 @@ enum DIRECTION
 #define DARROW 80
 #define ENTER 13
 #define ESCAPE 27
-
+#define MaxUserBlock 20
 int score = 0;
 int controllable = 1;
 int blockID;

@@ -50,6 +50,16 @@ void ClearConsole();
 void DrawGameBoard();
 void Player();
 
+//BLOCKMANAGE
+int UserBlockID[MaxUserBlock] = { 0 };
+int StageNumber = 1;
+int CurrentUserBlock;
+int page=1;
+void UserBlockManage();
+void BlockAllocator();
+void ShowBlock(char blockinfo[4][4]);
+void DeleteAllBlock();
+void ClearConsole();
 int main()
 {
 	srand(time(NULL));
@@ -68,6 +78,7 @@ int main()
 
 		while (1)
 		{
+			BlockAllocator();
 			if (ShowGame() == 0)
 				break;
 
@@ -167,6 +178,7 @@ int ShowGame()
 
 	DrawGameUI();
 	DrawGameBoard();
+	UserBlockManage();
 	while (1)
 	{
 		DWORD curMsTime = GetTickCount();
@@ -200,6 +212,18 @@ int ShowGame()
 				else
 					DrawGameBoard();
 				break;
+			case 110:
+				if (page >= 5)
+					break;
+				page++;
+				UserBlockManage();
+				break;
+			case 109:
+				if (page <= 1)
+					break;
+				page--;
+				UserBlockManage();
+				break;
 			}
 
 		}
@@ -214,7 +238,7 @@ void ShowResult()
 }
 void DrawGameUI()
 {
-	int statusBoardWidth = 20;
+	int statusBoardWidth = 28;
 	int statusBoardHeight = gBoardHeight;
 
 	for (int y = 0; y < gBoardHeight + 2; y += gBoardHeight + 1)
@@ -236,7 +260,35 @@ void DrawGameUI()
 		SetCurrentCursorPos(gBoardWidth + statusBoardWidth + 2, y);
 		printf("│");
 	}
+	// 유저블록판그리기
+	int x, y;
+	x = gBoardWidth + 6, y = 7;
+	for (int z = 1; z <= 3; z++) {
+		for (int x = gBoardWidth + 2; x <= gBoardWidth + 30; x += 2)
+		{
+			SetCurrentCursorPos(x, y);
+			if (x == gBoardWidth + 2)
+				printf("├");
+			else if (x == gBoardWidth + 30)
+				printf("┤");
+			else
+				printf("─");
+		}
+		y += 6;
+	}
+	for (int y = 7; y < gBoardHeight ; y++) {
+		x = gBoardWidth + 16;
+		SetCurrentCursorPos(x, y);
+		if (y == 7)
+			printf("┬");
+		else if (y == 19)
+			printf("┴");
+		else if ( y == 13)
+			printf("┼");
+		else
+			printf("│");
 
+	}
 	SetCurrentCursorPos(0, 0);
 	printf("┌");
 	SetCurrentCursorPos(gBoardWidth + 2, gBoardHeight + 1);
@@ -255,6 +307,7 @@ void DrawGameUI()
 	printf("TIME");
 	SetCurrentCursorPos(71, 4);
 	printf("%02d:%02d", 0, 0);
+
 }
 void UpdateGameUI()
 {
@@ -365,4 +418,94 @@ void DrawGameBoard()
 void Player()
 {
 
+}
+void UserBlockManage()
+{
+	int x, y;
+	x = gBoardWidth + 6, y = 8;
+	
+
+	// 화면에 현재 페이지 유저블록 출력
+	for (int i = 4*page - 4; i < 4*page ; i++)
+	{
+		SetCurrentCursorPos(x, y);
+		
+		if (UserBlockID[i] == -1) {
+			DeleteAllBlock();
+			SetCurrentCursorPos(x , y + 2);
+			printf("empty");
+		}
+		else {
+			DeleteAllBlock();
+			ShowBlock(blockModel[UserBlockID[i]]);
+		}
+		SetCurrentCursorPos(x+2, y+4);
+		printf("-0%d-",i%4+1);
+		
+		if (i % 2 == 0)
+			x += 14;
+		else
+		{
+			x -= 14;
+			y += 6;
+		}
+
+	}
+	SetCurrentCursorPos(gBoardWidth + 4, gBoardHeight);
+	printf(" page : %d/%d n:next m:prev", page,5);
+}
+void BlockAllocator() // 초기블럭할당자.
+{
+	if (StageNumber == 1)
+	{
+		CurrentUserBlock = 0;
+		for (int i = 0; i < MaxUserBlock; i++) {
+			if (i < 7)
+			{
+				UserBlockID[i] = i * 4;
+				CurrentUserBlock++;
+			}
+			else
+				UserBlockID[i] = -1;
+			
+		}
+	}
+}
+void ShowBlock(char blockInfo[4][4])
+{
+	int x, y;
+	COORD curPos = GetCurrentCursorPos();
+	for (y = 0; y < 4; y++) {
+		for (x = 0; x < 4; x++) {
+			SetCurrentCursorPos(curPos.X + (x * 2), curPos.Y + y);
+			if (blockInfo[y][x] == 1)
+				printf("■");
+		}
+	}
+	SetCurrentCursorPos(curPos.X, curPos.Y);
+}
+void DeleteBlock(char blockInfo[4][4])
+{
+	int x, y;
+	COORD curPos = GetCurrentCursorPos();
+	for (y = 0; y < 4; y++) {
+		for (x = 0; x < 4; x++) {
+			SetCurrentCursorPos(curPos.X + (x * 2), curPos.Y + y);
+			if (blockInfo[y][x] == 1)
+				printf(" ");
+		}
+	}
+	SetCurrentCursorPos(curPos.X, curPos.Y);
+}
+void DeleteAllBlock()
+{
+	int x, y;
+	COORD curPos = GetCurrentCursorPos();
+	for (y = 0; y < 4; y++) {
+		for (x = 0; x < 4; x++) {
+			SetCurrentCursorPos(curPos.X + (x * 2), curPos.Y + y);
+			printf("  ");
+		}
+	}
+	SetCurrentCursorPos(curPos.X, curPos.Y);
 }
