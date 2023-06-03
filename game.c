@@ -3,6 +3,7 @@
 #include <windows.h>
 #include "block.h"
 
+
 int gBoardHeight = 20;
 int gBoardWidth = 60;
 int speed = 500 / 15;
@@ -12,9 +13,17 @@ int speed = 500 / 15;
 //11:┘12:└ 13:사이드퀘스트★ 14:중력무시 아이템♣ 15:적 무시 아이템♠ 16:1회 부활 아이템♥
 
 //현재 0:공백 1:가시 2:바닥 3:플레이어
+//방향은 ↑:1 / →:2 / ↓:3 / ←:4
+//모든 오브젝트 정보는 세자리수로 통일하여 관리
+
+#define BLANK 0
+#define THORNS 1
+#define BLOCK 2
+#define PLAYER 3
+
 int gameBoardInfo[20][30]= {
 	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,512,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
@@ -60,6 +69,14 @@ void BlockAllocator();
 void ShowBlock(char blockinfo[4][4]);
 void DeleteAllBlock();
 void ClearConsole();
+
+//MovingObjects
+int detectCollisionInDirection(int x, int y, int direction);
+int detectCollision(int x, int y);
+int parseInfo(int info, int choice);
+int detectCollisionMovingBlocks(int x, int y);
+
+
 int main()
 {
 	srand(time(NULL));
@@ -224,6 +241,9 @@ int ShowGame()
 				page--;
 				UserBlockManage();
 				break;
+			case 'z': // 테스트
+				SetCurrentCursorPos(0, 30);
+				printf("%d", detectCollision(2, 1));
 			}
 
 		}
@@ -508,4 +528,84 @@ void DeleteAllBlock()
 		}
 	}
 	SetCurrentCursorPos(curPos.X, curPos.Y);
+}
+
+
+
+
+int detectCollision(int x, int y) { // 이동블럭 충돌체크까지 (이동블럭의 중심 제외 나머지 부분은 일반블럭과 동일한 100 리턴)
+	if (detectCollisionMovingBlocks(x, y) == 1) {
+		return 100;
+	}
+	return(gameBoardInfo[y][x]);
+}
+
+int detectCollisionInDirection(int x, int y, int direction) {
+	switch (direction) {
+	case 1:
+		return(detectCollision(x, y - 1));
+	case 2:
+		return(detectCollision(x + 1, y));
+	case 3:
+		return(detectCollision(x, y + 1));
+	case 4:
+		return(detectCollision(x - 1, y));
+	default:
+		break;
+	}
+	return 0;
+}
+
+int detectCollisionMovingBlocks(int x, int y) { // 해당 좌표에 이동블럭의 중심을 제외한 양 날개부분이 존재하는지 검사, 이 함수 구현의 편의를 위해 gameboard 테두리 한칸씩은 일반 블럭으로 채워넣는것이 좋아보임
+	int info = gameBoardInfo[y - 1][x];
+
+	int info_id = parseInfo(info, 0);
+	int info_rotation = parseInfo(info, 2);
+
+	if (info_id == 5 && info_rotation % 2 == 1) {
+		return 1;
+	}
+
+	info = gameBoardInfo[y + 1][x];
+
+	info_id = parseInfo(info, 0);
+	info_rotation = parseInfo(info, 2);
+
+	if (info_id == 5 && info_rotation % 2 == 1) {
+		return 1;
+	}
+
+	info = gameBoardInfo[y][x + 1];
+
+	info_id = parseInfo(info, 0);
+	info_rotation = parseInfo(info, 2);
+
+	if (info_id == 5 && info_rotation % 2 == 0) {
+		return 1;
+	}
+
+	info = gameBoardInfo[y][x - 1];
+
+	info_id = parseInfo(info, 0);
+	info_rotation = parseInfo(info, 2);
+
+	if (info_id == 5 && info_rotation % 2 == 0) {
+		return 1;
+	}
+
+	return 0;
+
+}
+
+int parseInfo(int info, int choice) { // choice : 0 for id, 1 for direction, 2 for rotation
+	switch (choice) {
+	case 0:
+		return (info / 100);
+	case 1:
+		return (info % 100 / 10);
+	case 2:
+		return (info % 10);
+	default:
+		return (info / 100);
+	}
 }
