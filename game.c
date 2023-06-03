@@ -3,6 +3,7 @@
 #include <windows.h>
 #include "block.h"
 #include "defines.h"
+#include "player.h"
 #pragma warning(disable:4996)
 
 
@@ -25,10 +26,10 @@ int speed = 500 / 15;
 
 
 
-int gameBoardInfo[MAX_HEIGHT][MAX_WIDTH] = { 0 };
 //SYSTEM
 COORD GetCurrentCursorPos();
 void SetCurrentCursorPos(int x, int y);
+
 
 //DRAW
 void RemoveCursor();
@@ -36,32 +37,46 @@ int ShowMainMenu();
 int ShowGame();
 void ShowResult();
 void DrawGameUI();
-void UpdateGameUI();
+void UpdateGameUI(int time);
 int GamePause();
 void ClearConsole();
 
-void Player();
 
 //MAP
+int gameBoardInfo[MAX_HEIGHT][MAX_WIDTH] = { 0 };
 int LoadStage();
 void DrawGameBoard();
+
+
+//PLAYER
+Player p;
+void InitPlayer();
+void ControlCharacter();
+int DetectCollisionForPlayer(int x, int y);
+void MovePlayer();
+
 
 //BLOCKMANAGE
 int UserBlockID[MAXUSERBLOCK] = { 0 };
 int StageNumber = 1;
 int CurrentUserBlock;
-int page=1;
+int page = 1;
 
+void BlockBuild();
 void UserBlockManage();
 void BlockAllocator();
 void ShowBlock(char blockinfo[4][4]);
+void DeleteBlock(char blockinfo[4][4]);
 void DeleteAllBlock();
+void MakeBlock(char blockInfo[4][4]);
+int DetectCollisionForBlock(int x, int y, char blockInfo[4][4]);
 
 //MovingObjects
 int detectCollisionInDirection(int x, int y, int direction);
 int detectCollision(int x, int y);
 int parseInfo(int info, int choice);
 int detectCollisionMovingBlocks(int x, int y);
+
 
 
 //M A I N
@@ -139,7 +154,6 @@ int ShowMainMenu()
 		if (_kbhit() != 0)
 		{
 			int key = _getch();
-			//printf("%d", key);
 
 			switch (key)
 			{
@@ -175,11 +189,14 @@ int ShowGame()
 {
 	int time = 0;
 	DWORD startMsTime = GetTickCount();
+	DWORD characterMoveTime = GetTickCount();
 
+	InitPlayer();
 	LoadStage();
 	DrawGameUI();
 	DrawGameBoard();
 	UserBlockManage();
+
 	while (1)
 	{
 		DWORD curMsTime = GetTickCount();
@@ -188,14 +205,20 @@ int ShowGame()
 		{
 			time = (curMsTime - startMsTime) * 0.001f;
 
-			int minute = time / 60;
-			int second = time % 60;
+			UpdateGameUI(time);
+		}
 
-			SetCurrentCursorPos((gBoardWidth * 2) + ((gBoardWidth + 8) / 2), 3);
-			printf("      ");
+		ControlCharacter();
 
-			SetCurrentCursorPos((gBoardWidth * 2) + ((gBoardWidth + 8) / 2), 3);
-			printf("%02d:%02d", minute, second);
+		if (p.direction != 0 || p.isJump || p.isOnAir)
+		{
+			DWORD curPlayerMoveTime = GetTickCount();
+
+			if ((curPlayerMoveTime - characterMoveTime) * 0.001f >= 0.2f)
+			{
+				MovePlayer();
+				characterMoveTime = GetTickCount();
+			}
 		}
 
 		if (_kbhit() != 0)
@@ -230,7 +253,6 @@ int ShowGame()
 		}
 
 		//DrawGameBoard();
-		Player();
 	}
 }
 void ShowResult()
@@ -311,9 +333,16 @@ void DrawGameUI()
 	printf("%02d:%02d", 0, 0);
 
 }
-void UpdateGameUI()
+void UpdateGameUI(int time)
 {
+	int minute = time / 60;
+	int second = time % 60;
 
+	SetCurrentCursorPos((gBoardWidth * 2) + ((gBoardWidth + 8) / 2), 3);
+	printf("      ");
+
+	SetCurrentCursorPos((gBoardWidth * 2) + ((gBoardWidth + 8) / 2), 3);
+	printf("%02d:%02d", minute, second);
 }
 int GamePause()
 {
@@ -390,9 +419,207 @@ void ClearConsole()
 
 
 //PLAYER
-void Player()
+void InitPlayer()
 {
+	p.x = 1;
+	p.y = 1;
+	p.direction = NONE;
+	p.isJump = 0;
+	p.jumpHeight = 3;
+	p.jumpCounter = 0.f;
+}
+void ControlCharacter() 
+{
+	//switch (key)
+	//{
+	//case LARROW:
+	//case RARROW:
+	//case UARROW:
+	//case DARROW:
+	//	MovePlayer(key);
+	//	break;
+	//case BUILD:
+	//	BlockBuild(key);
+	//	break;
+	//}
 
+	//플레이어 좌우 이동
+	if (GetAsyncKeyState(VK_LEFT))
+		p.direction = 1;
+	else if (GetAsyncKeyState(VK_RIGHT))
+		p.direction = 2;
+	else
+		p.direction = 0;
+
+	//점프키
+	if ((GetAsyncKeyState(VK_UP) & 0x8000) && !p.isJump)
+	{
+		p.jumpStartHeight = p.y;
+		p.isJump = 1;
+		p.isOnAir = 1;
+	}
+
+	
+
+	////왼쪽키 누를때
+	////조건:캐릭터위치가 맵 안쪽에있고 && 
+	////게임보드인포상 캐릭터 왼쪽 값이 0 일때
+	//if (GetAsyncKeyState(VK_LEFT) & 0x8000 && p.x > 2
+	//	&& gameBoardInfo[p.y - 1][p.x / 2 - 2] == 0) {
+	//	SetCurrentCursorPos(p.x, p.y);
+	//	//캐릭터가 지나간자리를 공백으로만들기위해
+	//	printf("  ");
+	//	//캐릭터가 지나간자리 게임보드인포를 0으로 만들음
+	//	gameBoardInfo[p.y - 1][p.x / 2 - 1] = 0;
+	//	//캐릭터 왼쪽으로 1칸 이동
+	//	p.x -= 1;
+
+	//}
+	////오른쪽키 누를때
+	////조건:캐릭터위치가 맵 안쪽에있고 &&
+	////게임보드인포상 오른쪽 값이 0일때
+	//if (GetAsyncKeyState(VK_RIGHT) & 0x8000 && p.x < 60
+	//	&& gameBoardInfo[p.y - 1][p.x / 2] == 0) {
+	//	SetCurrentCursorPos(p.x, p.y);
+	//	//캐릭터가 지나간자리를 공백으로만들기위해
+	//	printf(" ");
+	//	//캐릭터가 지나간자리 게임보드인포를 0으로 만들음
+	//	gameBoardInfo[p.y - 1][p.x / 2 - 1] = 0;
+	//	//캐릭터 오른쪽으로 1칸 이동
+	//	p.x += 1;
+	//}
+
+	////바닥 Y값(바닥까지 캐릭터가 떨어지게 하기위해 값 지정)
+	//int floor_Y = 19;
+	////위에 키 누를때
+	////조건:캐릭터 t_jump값이 2보다 클때 &&
+	////캐릭터 아래 게임보드 인포값이 2 일때
+	//if (GetAsyncKeyState(VK_UP) & 0x8000
+	//	&& p.t_jump >= 2
+	//	&& gameBoardInfo[p.y][p.x / 2 - 1] == 2) {
+	//	//캐릭터의 t_jump값을 0으로만들음
+	//	p.t_jump = 0;
+	//}
+
+	//SetCurrentCursorPos(p.x, p.y);
+	////캐릭터가 지나간자리를 공백으로만들기위해(점프했을때)
+	//printf("  ");
+	////캐릭터가 지나간자리 게임보드인포를 0으로 만들음(점프했을때)
+	//gameBoardInfo[p.y - 1][p.x / 2 - 1] = 0;
+
+	////점프
+	////캐릭터가 맵 바닥보다 높이 있고 
+	////&& 캐릭터 t_jump 가 2보다 크고
+	////&& 캐릭터 아래 게임보드인포값이 0일때
+	//if (p.y < floor_Y
+	//	&& p.t_jump >= 2
+	//	&& gameBoardInfo[p.y][p.x / 2 - 1] == 0) {
+	//	p.y += 1;//캐릭터 아래로 내리기
+	//}
+	////캐릭터 t_jump 가 2보다작을때(up을 눌러서 t_jump가 0이됐을때)
+	//if (p.t_jump < 2) {
+	//	//조건:캐릭터위에 벽이있지않으면(위쪽 충돌처리)
+	//	//&&캐릭터가 맵 위쪽 넘어가지않게
+	//	if (gameBoardInfo[p.y - 2][p.x / 2 - 1] != 2
+	//		&& p.y > 1) {
+	//		p.y -= 1;//캐릭터 위로 올리기
+	//		//floor(반올림)을 쓰면 캐릭터가 덜 점프하게 할 수있는데 반응속도가 느려짐
+	//		//p.y -= floor(p.t_jump);
+	//	}
+	//	//점프를 그만하게하기위한 t_jump값 조정
+	//	p.t_jump += 0.4;
+
+	//}
+}
+
+//닿아서 죽으면 -1 / 닿아도 통과하는거면 0 / 닿아서 통과가 안되면 1
+int DetectCollisionForPlayer(int x, int y)
+{
+	//플레이어가 움직이고싶은 좌표 x, y를 인자로 받음
+	//만약 닿았을때 죽는 오브젝트와 충돌하면 -1를 리턴함
+	//닿아도 움직임에 영향이 없는(통과하거나 먹는 오브젝트면) 0을 리턴함
+	//닿아도 죽지는 않지만 움직임이 막히면 1을 리턴함
+
+	int colID = gameBoardInfo[y - 1][x - 1] / 100;
+
+	if ((x < 1 || x >= gBoardWidth) || (y < 1 || y >= gBoardHeight))
+		return 1;
+
+	if (colID == 3 /*// colID == 총알*/)
+		return -1;
+	else if (colID == 0 || colID == 7 || colID == 8)
+		return 0;
+	else
+		return 1;
+}
+void MovePlayer()
+{
+	int x = p.x;
+	int y = p.y;
+
+	SetCurrentCursorPos(x * 2, y);
+	printf("  ");
+
+	if (p.direction)
+	{
+		if (p.direction == 1)
+			x--;
+		else if (p.direction == 2)
+			x++;
+	}
+
+	if (p.isJump)
+	{
+		if (p.jumpStartHeight - p.jumpHeight <= p.y)
+			y--;
+		else
+		{
+			p.isJump = 0;
+		}
+	}
+	else if (p.isOnAir)
+		y++;
+
+	
+
+	//switch (dir)
+	//{
+	//case UARROW:
+	//	if (!p.isJump)
+	//	{
+	//		p.isJump = 1;
+	//		p.jumpStartHeight = p.y;
+	//		p.y--;
+	//	}
+	//	break;
+	//case DARROW:
+	//	y++;
+	//	break;
+	//case RARROW:
+	//	x++;
+	//	break;
+	//case LARROW:
+	//	x--;
+	//	break;
+	//}
+
+	if (DetectCollisionForPlayer(x, y) != 0)
+	{
+		SetCurrentCursorPos(p.x * 2, p.y);
+		printf("●");
+		return;
+	}
+
+	if (DetectCollisionForPlayer(x, y + 1) != 0 && !p.isJump)
+	{
+		p.isOnAir = 0;
+	}
+
+	SetCurrentCursorPos(x * 2, y);
+
+	printf("●");
+	p.x = x;
+	p.y = y;
 }
 
 
@@ -489,7 +716,18 @@ void DrawGameBoard()
 				//아이템 종류 결정 필요
 				break;
 			case 8:
-				printf("★");
+				switch (ten)
+				{
+				case 1:
+
+					break;
+				case 2:
+					p.x = x;
+					p.y = y;
+					SetCurrentCursorPos(x * 2, y);
+					printf("●");
+					break;
+				}
 				//사이드퀘스트 가산 필요
 				break;
 			case 9:
@@ -574,6 +812,99 @@ void BlockAllocator() // 초기블럭할당자.
 		}
 	}
 }
+void BlockBuild()
+{
+	int bX, bY;
+	bX = p.x*2;
+	bY = p.y-4;
+	int blockid=0;
+	int end = 0, prevblockid = -1;
+	while (1) {
+		int key = _getch();
+
+		switch (key)
+		{
+		case 49:
+			blockid = (page - 1) * 4;
+			break;
+		case 50:
+			blockid = (page - 1) * 4 + 1;
+			break;
+		case 51:
+			blockid = (page - 1) * 4 + 2;
+			break;
+		case 52:
+			blockid = (page - 1) * 4 + 3;
+			break;
+		case LARROW:
+			if (!DetectCollisionForBlock(bX - 2, bY, blockModel[prevblockid]))
+				bX = bX - 2;
+			else
+				continue;
+			break;
+		case RARROW:
+			if (!DetectCollisionForBlock(bX + 2, bY, blockModel[prevblockid]))
+				bX = bX + 2;
+			else
+				continue;
+			break;
+		case UARROW:
+			if (!DetectCollisionForBlock(bX, bY-1, blockModel[prevblockid]))
+				bY--;
+			else
+				continue;
+			break;
+		case DARROW:
+			if (!DetectCollisionForBlock(bX, bY + 1, blockModel[prevblockid]))
+				bY++;
+			else
+				continue;
+			break;
+		case KB_N:
+			if (page >= 5)
+				break;
+			page++;
+			UserBlockManage();
+			break;
+		case KB_M:
+			if (page <= 1)
+				break;
+			page--;
+			UserBlockManage();
+			break;
+		case SPACE:
+			UserBlockID[blockid] = -1;
+			MakeBlock(blockModel[prevblockid]);
+			UserBlockManage();
+			prevblockid = -1;
+			end = 1;
+			break;
+		case L_ROTATE:
+			if (!DetectCollisionForBlock(bX, bY, blockModel[4 * (UserBlockID[blockid] / 4) + (UserBlockID[blockid] + 3) % 4]))
+				UserBlockID[blockid] = 4 * (UserBlockID[blockid] / 4) + (UserBlockID[blockid] + 3) % 4;
+			else
+				continue;
+			break;
+		case R_ROTATE:
+			if (!DetectCollisionForBlock(bX, bY, blockModel[4 * (UserBlockID[blockid] / 4) + (UserBlockID[blockid] + 1) % 4 ]))
+				UserBlockID[blockid] = 4 * (UserBlockID[blockid] / 4) + (UserBlockID[blockid] + 1) % 4;
+			else
+				continue;			
+			break;
+		case BUILD:
+			end = 1;
+			break;
+		}
+	
+		if(prevblockid!=-1)
+			DeleteBlock(blockModel[prevblockid]);
+		if (end == 1)
+			break;
+		SetCurrentCursorPos(bX, bY);
+		ShowBlock(blockModel[UserBlockID[blockid]]);
+		prevblockid = UserBlockID[blockid];
+	}
+}
 void ShowBlock(char blockInfo[4][4])
 {
 	int x, y;
@@ -595,7 +926,21 @@ void DeleteBlock(char blockInfo[4][4])
 		for (x = 0; x < 4; x++) {
 			SetCurrentCursorPos(curPos.X + (x * 2), curPos.Y + y);
 			if (blockInfo[y][x] == 1)
-				printf(" ");
+				printf("  ");
+		}
+	}
+	SetCurrentCursorPos(curPos.X, curPos.Y);
+}
+void MakeBlock(char blockInfo[4][4])
+{
+	int x, y;
+	COORD curPos = GetCurrentCursorPos();
+	curPos.X = curPos.X - 2;
+	curPos.Y--;
+	for (y = 0; y < 4; y++) {
+		for (x = 0; x < 4; x++) {
+			if (blockInfo[y][x] == 1)
+				gameBoardInfo[y + curPos.Y][x + curPos.X/2 ]=100;
 		}
 	}
 	SetCurrentCursorPos(curPos.X, curPos.Y);
@@ -612,7 +957,20 @@ void DeleteAllBlock()
 	}
 	SetCurrentCursorPos(curPos.X, curPos.Y);
 }
-
+int DetectCollisionForBlock(int x, int y,char blockInfo[4][4])
+{
+	int x1, y1;
+	COORD curPos = GetCurrentCursorPos();
+	x = x - 2;
+	y--;
+	for (y1 = 0; y1 < 4; y1++) {
+		for (x1 = 0; x1 < 4; x1++) {
+			if (blockInfo[y1][x1] == 1 && gameBoardInfo[y1 + y][x1 + x / 2] == 100)
+				return 1;
+		}
+	}
+	return 0;
+}
 
 
 //OBJECTS
