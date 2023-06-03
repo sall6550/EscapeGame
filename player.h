@@ -7,4 +7,8 @@ typedef struct Player
 
 	int isDead;
 	int isExtraLife;
+	//중력무시
+	int defyingGravity;
+	//무적
+	int invincibility;
 }Player;
